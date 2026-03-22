@@ -8,10 +8,10 @@ import (
 var PlantModels [4]rl.Model
 
 var ChunkDistance int = 5
+var CloudHeight int = 80
 
 const (
 	WorldHeight        int     = 112
-	CloudHeight        int     = 92
 	ChunkSize          int     = 16
 	WaterLevelFraction float64 = 0.375 // 3/8
 )
@@ -63,6 +63,7 @@ type Chunk struct {
 
 	Mesh          rl.Mesh
 	Model         rl.Model
+	CloudModel    rl.Model
 	SpecialVoxels []SpecialVoxel
 	IsOutdated    bool // Flag to know if you need to update the mesh
 }

@@ -14,7 +14,7 @@ func main() {
 	// Main game loop
 	for !rl.WindowShouldClose() {
 		// Toggle menu
-		if rl.IsKeyPressed(rl.KeyP) {
+		if rl.IsKeyPressed(rl.KeyTab) {
 			render.ShowMenu = !render.ShowMenu
 
 			if render.ShowMenu {

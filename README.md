@@ -1,5 +1,5 @@
 # PtotahovatsiStroj
-### v0.13.0
+### v0.13.1
 <center><img src="./img/engine_logo.png" alt="Logo" width="100%"></center>
 
 A voxel engine built using **raylib-go** and **OpenGL**
@@ -13,9 +13,10 @@ A voxel engine built using **raylib-go** and **OpenGL**
 - **Basic Shading**: Combines ambient with directional lighting for better depth perception.
 - **Atmospheric effects**: Atmospheric depth with fog and basic clouds.
 - **Cache System**: Efficiently stored surface features positions, providing better world consistency.
-- **Game Settings**: Configuration menu accessible by pressing "P". There players can configure the view distance, FPS limits, world rules (weather, day/night cycle and add/remove or change cloud height), and toggle debug such as like FPS and player position.
+- **Game Settings**: Configuration menu accessible by pressing "Tab". There players can configure the view distance, FPS limits, world rules (weather, day/night cycle and add/remove or change cloud height), and toggle debug such as FPS and player position.
 
 ## Upcoming Features 📋
+- **Advanced Optimizations**: Algorithms such as Fustrum Cooling and Greedy Meshing for better performance.
 - **Smooth Lighting**: Improved lighting using vertex lighting and baked ambient occlusion.
 - **Block Interaction**: Enable players to place and destroy blocks.
 - **Dynamic Weather & Time Cycle**: Add a day/night cycle and weather effects such as rain and snow.
@@ -33,7 +34,7 @@ To get started with the voxel engine, clone the repository and open the folder. 
 ## Controls 🎮
 - **Mouse Left Button**: Lock cursor.
 - **Camera**: WASD movement, mouse to look.
-- **P**: Open settings menu.
+- **Tab**: Open settings menu.
 - **Esc**: To close the window.
 
 ## License 📄

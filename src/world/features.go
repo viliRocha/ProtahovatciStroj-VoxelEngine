@@ -263,7 +263,7 @@ func placeTree(chunkCache *ChunkCache, position rl.Vector3, treeStructure string
 
 				// "l": leafPos
 				lx := currentPos.X + float32(radius*math.Cos(angle))
-				ly := currentPos.Y + float32(rand.Intn(2)) // variação vertical)
+				ly := currentPos.Y + float32(rand.Intn(2)) // vertical variation
 				lz := currentPos.Z + float32(radius*math.Sin(angle))
 
 				if int(ly) >= 0 && int(ly) < pkg.WorldHeight {

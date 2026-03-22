@@ -2,7 +2,7 @@ package render
 
 import (
 	"fmt"
-	"math"
+	"math/rand"
 	"sort"
 
 	"go-engine/src/load"
@@ -11,16 +11,7 @@ import (
 
 	gui "github.com/gen2brain/raylib-go/raygui"
 	rl "github.com/gen2brain/raylib-go/raylib"
-	"golang.org/x/exp/constraints"
 )
-
-var ShowMenu bool = false
-var ShowFPS bool = true
-var ShowPosition bool = true
-var ShowClouds bool = true
-
-var menuScroll rl.Vector2
-var menuView rl.Rectangle
 
 func RenderVoxels(game *load.Game) {
 	cam := game.Camera.Position
@@ -133,103 +124,6 @@ func RenderVoxels(game *load.Game) {
 	rl.SetBlendMode(rl.BlendMode(0))
 }
 
-/*
-func RenderVoxels(game *load.Game) {
-	cam := game.Camera.Position
-	rl.SetShaderValue(game.Shader, rl.GetShaderLocation(game.Shader, "viewPos"),
-		[]float32{cam.X, cam.Y, cam.Z}, rl.ShaderUniformVec3)
-
-	var solids []struct {
-		chunk *pkg.Chunk
-		pos   rl.Vector3
-	}
-	var plants []struct {
-		voxel pkg.SpecialVoxel
-		pos   rl.Vector3
-	}
-	var transparents []pkg.TransparentItem
-	var rebuild []*pkg.Chunk
-
-	var chunkPos rl.Vector3
-
-	// --- Coleta de dados com lock ---
-	game.ChunkCache.CacheMutex.RLock()
-	for coord, chunk := range game.ChunkCache.Active {
-		chunkPos = rl.NewVector3(
-			float32(coord.X*pkg.ChunkSize),
-			0,
-			float32(coord.Z*pkg.ChunkSize))
-
-		if chunk.IsOutdated {
-			rebuild = append(rebuild, chunk)
-		}
-
-		if chunk.Model.MeshCount > 0 && chunk.Model.Meshes != nil {
-			solids = append(solids, struct {
-				chunk *pkg.Chunk
-				pos   rl.Vector3
-			}{chunk, chunkPos})
-		}
-
-		for _, voxel := range chunk.SpecialVoxels {
-			pos := rl.NewVector3(
-				chunkPos.X+float32(voxel.Position.X),
-				chunkPos.Y+float32(voxel.Position.Y),
-				chunkPos.Z+float32(voxel.Position.Z),
-			)
-			if voxel.Type == "Plant" {
-				plants = append(plants, struct {
-					voxel pkg.SpecialVoxel
-					pos   rl.Vector3
-				}{voxel, pos})
-			} else {
-				transparents = append(transparents, pkg.TransparentItem{
-					Position:       pos,
-					Type:           voxel.Type,
-					Color:          world.BlockTypes[voxel.Type].Color,
-					IsSurfaceWater: voxel.Type == "Water" && voxel.IsSurface,
-				})
-			}
-		}
-	}
-	game.ChunkCache.CacheMutex.RUnlock()
-
-	// --- Rebuild fora do lock ---
-	for _, chunk := range rebuild {
-		BuildChunkMesh(game, chunk, rl.NewVector3(chunkPos.X*float32(pkg.ChunkSize), 0, chunkPos.Z*float32(pkg.ChunkSize)))
-		chunk.IsOutdated = false
-	}
-
-	// --- Desenho fora do lock ---
-	for _, s := range solids {
-		rl.DrawModel(s.chunk.Model, s.pos, 1.0, rl.White)
-	}
-	for _, p := range plants {
-		rl.DrawModel(p.voxel.Model, p.pos, 0.4, rl.White)
-	}
-
-	// Transparências: ordenar e desenhar
-	sort.Slice(transparents, func(i, j int) bool {
-		di := rl.Vector3Length(rl.Vector3Subtract(transparents[i].Position, cam))
-		dj := rl.Vector3Length(rl.Vector3Subtract(transparents[j].Position, cam))
-		return di > dj
-	})
-	rl.SetBlendMode(rl.BlendAlpha)
-	rl.DisableDepthMask()
-	for _, it := range transparents {
-		switch it.Type {
-		case "Water":
-			p := rl.NewVector3(it.Position.X+0.5, it.Position.Y+0.5, it.Position.Z+0.5)
-			rl.DrawPlane(p, rl.NewVector2(1.0, 1.0), it.Color)
-		case "Cloud":
-			rl.DrawCube(it.Position, 1.0, 0.0, 1.0, it.Color)
-		}
-	}
-	rl.EnableDepthMask()
-	rl.SetBlendMode(rl.BlendMode(0))
-}
-*/
-
 func applyUnderwaterEffect(game *load.Game) {
 	waterLevel := int(float64(pkg.WorldHeight)*pkg.WaterLevelFraction) + 1
 
@@ -255,15 +149,36 @@ func applyUnderwaterEffect(game *load.Game) {
 	}
 }
 
+var shouldRain = 0
+
+var stormSkyColor = rl.NewColor(120, 120, 120, 255)  // grey
+var targetSkyColor = rl.NewColor(150, 208, 233, 255) // normal blue
+
 func RenderGame(game *load.Game) {
 	rl.BeginDrawing()
-	rl.ClearBackground(rl.NewColor(150, 208, 233, 255)) //   Light blue
+	rl.ClearBackground(skyColor)
 	//rl.ClearBackground(rl.NewColor(134, 13, 13, 255))  Red
+
+	load.UpdateTimer()
+
+	if shouldRain == 1 {
+		updateSkyColor(targetSkyColor, stormSkyColor)
+
+		updateFog(game)
+	}
+
+	if load.ElapsedSeconds == 0 {
+		shouldRain = rand.Intn(2)
+	} else if load.ElapsedSeconds == 20 {
+		shouldRain = rand.Intn(2)
+	}
 
 	rl.BeginMode3D(game.Camera)
 
 	//	Begin drawing solid blocks and then transparent ones (avoid flickering)
 	RenderVoxels(game)
+
+	//updateSettings(game)
 
 	rl.EndMode3D()
 
@@ -278,7 +193,7 @@ func RenderGame(game *load.Game) {
 		// Visible menu area
 		menuBounds := rl.NewRectangle(float32(menuX), float32(menuY), float32(menuWidth), float32(menuHeight))
 
-		contentHeight := float32(500) // Actual height of the content, including what is not visible.
+		contentHeight := float32(600) // Actual height of the content, including what is not visible.
 		contentBounds := rl.NewRectangle(0, 0, float32(menuWidth-20), contentHeight)
 
 		gui.ScrollPanel(menuBounds, "Game settings", contentBounds, &menuScroll, &menuView)
@@ -286,8 +201,21 @@ func RenderGame(game *load.Game) {
 		renderMenu(menuX, menuY, menuWidth)
 	}
 
+	//	Update the fog density
+	if !ShowMenu && load.FogCoefficient != prevFogCoefficient {
+		fogDensity := float32(load.FogCoefficient * (1.0 / float32(pkg.ChunkDistance)))
+		locFogDensity := rl.GetShaderLocation(game.Shader, "fogDensity")
+		rl.SetShaderValue(game.Shader, locFogDensity, []float32{fogDensity}, rl.ShaderUniformFloat)
+
+		prevFogCoefficient = load.FogCoefficient
+	}
+
 	if ShowFPS {
 		rl.DrawFPS(10, 30)
+	}
+
+	if FrameLimit != prevFrameLimit {
+		rl.SetTargetFPS(int32(FrameLimit))
 	}
 
 	if ShowPosition {
@@ -296,61 +224,4 @@ func RenderGame(game *load.Game) {
 	}
 
 	rl.EndDrawing()
-}
-
-func renderMenu(menuX, menuY, width int32) {
-	rl.BeginScissorMode(
-		int32(menuView.X),
-		int32(menuView.Y),
-		int32(menuView.Width),
-		int32(menuView.Height),
-	)
-
-	offsetY := int32(menuScroll.Y)
-
-	newButton(menuX+20, menuY+40+offsetY, float32(width-40), 40.0, &ShowPosition, "Show Player Position")
-
-	newButton(menuX+20, menuY+90+offsetY, float32(width-40), 40.0, &ShowFPS, "Show FPS")
-
-	newButton(menuX+20, menuY+140+offsetY, float32(width-40), 40.0, &ShowClouds, "Clouds")
-
-	newGuiSlider(menuX+20, menuY+190+offsetY, float32(width-40), 40.0,
-		&pkg.ChunkDistance, 1, 10,
-		fmt.Sprintf("View Distance: %d", pkg.ChunkDistance),
-	)
-
-	//newGuiSlider(menuX+20, menuY+290, float32(menuWidth-40), 40.0, &load.FogCoefficient, 0.0, 1.0, fmt.Sprintf("Fog Density: %.3f", load.FogCoefficient))
-
-	rl.EndScissorMode()
-}
-
-func newButton(menuX, menuY int32, buttonWidth, buttonHeight float32, isOn *bool, text string) {
-	// raygui button
-	if gui.Button(rl.NewRectangle(float32(menuX), float32(menuY), buttonWidth, buttonHeight),
-		func() string {
-			if *isOn {
-				return fmt.Sprintf("%s: ON", text)
-			}
-			return fmt.Sprintf("%s: OFF", text)
-		}()) {
-		*isOn = !*isOn
-	}
-}
-
-func newGuiSlider[T constraints.Integer | constraints.Float](menuX, menuY int32, barWidth, barHeight float32, value *T, minVal, maxVal float32, text string) {
-	floatVal := float32(*value)
-
-	rl.DrawText(text, menuX, menuY, 20, rl.DarkGray)
-
-	floatVal = gui.Slider(rl.NewRectangle(float32(menuX), float32(menuY+30), barWidth, barHeight),
-		"", "",
-		floatVal, minVal, maxVal,
-	)
-
-	switch any(value).(type) {
-	case *int:
-		*value = T(int(math.Floor(float64(floatVal))))
-	case *float32:
-		*value = T(floatVal)
-	}
 }

@@ -3,6 +3,7 @@ package load
 import (
 	"fmt"
 	"math/rand"
+	"time"
 
 	"go-engine/src/pkg"
 	"go-engine/src/world"
@@ -25,7 +26,21 @@ const (
 	perlinBeta = 1.5
 )
 
-var FogCoefficient float32 = 0.0 // 0.072
+var FogColor = []float32{0.588, 0.816, 0.914, 1.0}
+
+var FogCoefficient float32 = 0.072
+
+var startTime time.Time
+var ElapsedSeconds int
+
+func initTimer() {
+	startTime = time.Now()
+}
+
+func UpdateTimer() {
+	elapsed := time.Since(startTime)
+	ElapsedSeconds = int(elapsed.Seconds())
+}
 
 type Game struct {
 	Camera        rl.Camera
@@ -85,8 +100,14 @@ func InitGame() Game {
 	//fmt.Println(fogDensity)
 	rl.SetShaderValue(Shader, locFogDensity, []float32{fogDensity}, rl.ShaderUniformFloat)
 
+	locFogColor := rl.GetShaderLocation(Shader, "fogColor")
+	rl.SetShaderValue(Shader, locFogColor, FogColor, rl.ShaderUniformVec4)
+
 	lightLoc := rl.GetShaderLocation(Shader, "lightDir")
 	rl.SetShaderValue(Shader, lightLoc, []float32{-1, -1, -0.5}, rl.ShaderUniformVec3)
+
+	//	Start weather & time cycle
+	initTimer()
 
 	// Load .vox models
 	for i := 0; i < len(pkg.PlantModels); i++ {
@@ -101,7 +122,7 @@ func InitGame() Game {
 		(*pkg.PlantModels[i].Materials).Shader = Shader
 	}
 
-	//LightPosition := rl.NewVector3(0, 5, 0)
+	//LightPosition := rl.NewVector3(0, 34, 0)
 
 	chunkCache := world.NewChunkCache() // Initialize ChunkCache
 
@@ -111,7 +132,8 @@ func InitGame() Game {
 
 	chunkCache.Active[originCoord] = world.GenerateChunk(worley, biomeSel, originPos, perlin1, perlin2, perlin3, chunkCache, nil, false, nil, false)
 
-	rl.SetTargetFPS(100)
+	//	That value can later be changed in game, it is just initialized here
+	rl.SetTargetFPS(60)
 
 	defaultFont := rl.GetFontDefault()
 
@@ -135,8 +157,6 @@ func InitGame() Game {
 	gui.SetStyle(gui.SLIDER, gui.BORDER_COLOR_FOCUSED, 0x444444ff)
 
 	gui.SetStyle(gui.SLIDER, gui.BORDER_COLOR_PRESSED, 0x333333ff)
-
-	//	Menu background style
 
 	return Game{
 		Camera:        camera,

@@ -1,0 +1,135 @@
+type chunkCloudEntry struct {
+	model    rl.Model
+	chunkPos rl.Vector3
+}
+
+var cloudChunks []chunkCloudEntry
+
+type TransparentDraw struct {
+	drawFn func()
+	distSq float32
+}
+
+var transparentDraws []TransparentDraw
+
+func RenderVoxels(game *load.Game) {
+	cam := game.Camera.Position
+
+	rl.SetShaderValue(game.Shader, rl.GetShaderLocation(game.Shader, "viewPos"), []float32{cam.X, cam.Y, cam.Z}, rl.ShaderUniformVec3)
+
+	// --- Round 1: solids ---
+	for coord, chunk := range game.ChunkCache.Active {
+		// Converts chunk coordinate to actual position
+		chunkPos := rl.NewVector3(
+			float32(coord.X*pkg.ChunkSize),
+			0,
+			float32(coord.Z*pkg.ChunkSize),
+		)
+
+		if chunk.IsOutdated {
+			BuildChunkMesh(game, chunk, chunkPos)
+
+			BuildCloudGreedyMesh(game, chunk)
+
+			chunk.IsOutdated = false // reset flag → do not rebuild each frame
+		}
+
+		// If the chunk has mesh, draw directly
+		if chunk.Model.MeshCount > 0 && chunk.Model.Meshes != nil {
+			rl.DrawModel(chunk.Model, chunkPos, 1.0, rl.White)
+		}
+
+		if ShowClouds && chunk.CloudModel.MeshCount > 0 {
+			cloudChunks = append(cloudChunks, chunkCloudEntry{
+				model:    chunk.CloudModel,
+				chunkPos: chunkPos,
+			})
+		}
+	}
+
+	// --- Passage 2: plants per chunk (without global sorting) ---
+	for coord, chunk := range game.ChunkCache.Active {
+		chunkPos := rl.NewVector3(
+			float32(coord.X*pkg.ChunkSize),
+			0,
+			float32(coord.Z*pkg.ChunkSize),
+		)
+
+		for _, voxel := range chunk.SpecialVoxels {
+			if voxel.Type == "Plant" {
+				pos := rl.NewVector3(
+					chunkPos.X+float32(voxel.Position.X),
+					chunkPos.Y+float32(voxel.Position.Y),
+					chunkPos.Z+float32(voxel.Position.Z))
+				rl.DrawModel(voxel.Model, pos, 0.4, rl.White)
+			}
+		}
+	}
+
+	// --- Global collection of transparencies ---
+	for coord, chunk := range game.ChunkCache.Active {
+		chunkPos := rl.NewVector3(
+			float32(coord.X*pkg.ChunkSize),
+			0,
+			float32(coord.Z*pkg.ChunkSize),
+		)
+
+		for _, voxel := range chunk.SpecialVoxels {
+			if voxel.Type != "Water" {
+				continue
+			}
+
+			pos := rl.NewVector3(
+				chunkPos.X+float32(voxel.Position.X),
+				chunkPos.Y+float32(voxel.Position.Y),
+				chunkPos.Z+float32(voxel.Position.Z),
+			)
+
+			diff := rl.Vector3Subtract(pos, cam)
+			distSq := diff.X*diff.X + diff.Y*diff.Y + diff.Z*diff.Z
+			color := world.BlockTypes["Water"].Color
+
+			transparentDraws = append(transparentDraws, TransparentDraw{
+				drawFn: func() {
+					rl.DrawPlane(pos, rl.NewVector2(1.0, 1.0), rl.NewColor(color.R, color.G, color.B, color.A))
+				},
+				distSq: distSq,
+			})
+		}
+	}
+
+	// --- Coleta transparentes: nuvens ---
+	for _, entry := range cloudChunks {
+		center := rl.NewVector3(
+			entry.chunkPos.X+float32(pkg.ChunkSize)/2,
+			float32(pkg.CloudHeight),
+			entry.chunkPos.Z+float32(pkg.ChunkSize)/2,
+		)
+		diff := rl.Vector3Subtract(center, cam)
+		distSq := diff.X*diff.X + diff.Y*diff.Y + diff.Z*diff.Z
+		model := entry.model
+		chunkPos := entry.chunkPos
+		transparentDraws = append(transparentDraws, TransparentDraw{
+			drawFn: func() {
+				rl.DrawModel(model, chunkPos, 1.0, rl.White)
+			},
+			distSq: distSq,
+		})
+	}
+
+	// --- Back-to-front sorting ---
+	sort.Slice(transparentDraws, func(i, j int) bool {
+		return transparentDraws[i].distSq > transparentDraws[j].distSq
+	})
+
+	// --- Round 3: transparent ---
+	rl.SetBlendMode(rl.BlendAlpha)
+	rl.DisableDepthMask()
+
+	for _, item := range transparentDraws {
+		item.drawFn()
+	}
+
+	rl.EnableDepthMask()
+	rl.SetBlendMode(rl.BlendMode(0))
+}
