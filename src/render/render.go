@@ -150,9 +150,16 @@ func applyUnderwaterEffect(game *load.Game) {
 }
 
 var shouldRain = 0
+var nextWeatherChange = 0
 
-var stormSkyColor = rl.NewColor(120, 120, 120, 255)  // grey
-var targetSkyColor = rl.NewColor(150, 208, 233, 255) // normal blue
+var stormSkyColor = rl.NewColor(120, 120, 120, 255) // grey
+var clearSkyColor = rl.NewColor(150, 208, 233, 255) // normal blue
+
+var stormFog float32 = 0.2
+var stormFogColor = []float32{0.5, 0.5, 0.5, 1.0} // grey
+
+var clearFog float32 = 0.072
+var clearFogColor = []float32{0.588, 0.816, 0.914, 1.0} // grey
 
 func RenderGame(game *load.Game) {
 	rl.BeginDrawing()
@@ -161,24 +168,40 @@ func RenderGame(game *load.Game) {
 
 	load.UpdateTimer()
 
-	if shouldRain == 1 {
-		updateSkyColor(targetSkyColor, stormSkyColor)
-
-		updateFog(game)
+	// Only change the climate when the scheduled time comes
+	if load.ElapsedSeconds >= nextWeatherChange {
+		shouldRain = rand.Intn(3)
+		nextWeatherChange = load.ElapsedSeconds + 20 // shedules next change
 	}
 
-	if load.ElapsedSeconds == 0 {
-		shouldRain = rand.Intn(2)
-	} else if load.ElapsedSeconds == 20 {
-		shouldRain = rand.Intn(2)
-	}
+	updateSkyColor()
 
 	rl.BeginMode3D(game.Camera)
 
 	//	Begin drawing solid blocks and then transparent ones (avoid flickering)
 	RenderVoxels(game)
 
-	//updateSettings(game)
+	if shouldRain == 1 {
+		targetSkyColor = stormSkyColor
+
+		updateFog(game, stormFog, stormFogColor)
+
+		// only initializes if there are not enough particles yet.
+		if len(pkg.RainDrops) < 300 {
+			initRain(game, 300, 30)
+		}
+
+		updateRain(game, 30)
+
+		drawRain()
+	} else {
+		targetSkyColor = clearSkyColor
+
+		updateFog(game, clearFog, clearFogColor)
+
+		// clean up particles when it stops raining.
+		pkg.RainDrops = nil
+	}
 
 	rl.EndMode3D()
 
@@ -199,15 +222,6 @@ func RenderGame(game *load.Game) {
 		gui.ScrollPanel(menuBounds, "Game settings", contentBounds, &menuScroll, &menuView)
 
 		renderMenu(menuX, menuY, menuWidth)
-	}
-
-	//	Update the fog density
-	if !ShowMenu && load.FogCoefficient != prevFogCoefficient {
-		fogDensity := float32(load.FogCoefficient * (1.0 / float32(pkg.ChunkDistance)))
-		locFogDensity := rl.GetShaderLocation(game.Shader, "fogDensity")
-		rl.SetShaderValue(game.Shader, locFogDensity, []float32{fogDensity}, rl.ShaderUniformFloat)
-
-		prevFogCoefficient = load.FogCoefficient
 	}
 
 	if ShowFPS {

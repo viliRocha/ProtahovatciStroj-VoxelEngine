@@ -20,8 +20,6 @@ var ShowClouds bool = true
 var FrameLimit int = 60
 var prevFrameLimit int = FrameLimit
 
-var prevFogCoefficient float32 = load.FogCoefficient
-
 var menuScroll rl.Vector2
 var menuView rl.Rectangle
 

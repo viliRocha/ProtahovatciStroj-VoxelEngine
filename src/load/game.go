@@ -26,7 +26,7 @@ const (
 	perlinBeta = 1.5
 )
 
-var FogColor = []float32{0.588, 0.816, 0.914, 1.0}
+var FogColor = []float32{0.588, 0.816, 0.914, 1.0} // clearSky
 
 var FogCoefficient float32 = 0.072
 

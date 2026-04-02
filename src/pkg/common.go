@@ -85,6 +85,14 @@ type BiomeProperties struct {
 	LeavesColor      rl.Color
 }
 
+type Particle struct {
+	Position rl.Vector3
+	Velocity rl.Vector3
+	Active   bool
+}
+
+var RainDrops []Particle
+
 var FaceDirections = []rl.Vector3{
 	{1, 0, 0},  // Front
 	{-1, 0, 0}, // Back
