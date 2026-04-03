@@ -2,13 +2,18 @@ package main
 
 import (
 	"go-engine/src/load"
+	"go-engine/src/pkg"
 	"go-engine/src/render"
 	"go-engine/src/world"
 
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
 
+var prevCloudHeight = pkg.CloudHeight
+
 func main() {
+	rl.InitAudioDevice()
+
 	game := load.InitGame()
 
 	// Main game loop
@@ -38,6 +43,9 @@ func main() {
 		render.RenderGame(&game)
 	}
 	rl.UnloadShader(game.Shader)
+
+	rl.UnloadMusicStream(load.RainSound) // Unload source sound data
+	rl.CloseAudioDevice()                // Close audio device
 
 	// After the loop ends:
 	defer rl.CloseWindow()

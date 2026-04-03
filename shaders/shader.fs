@@ -11,7 +11,7 @@ out vec4 finalColor;
 
 uniform vec3 viewPos;
 uniform float fogDensity;
-
+uniform float ambient;
 uniform vec4 fogColor;
 
 void main() {
@@ -23,7 +23,6 @@ void main() {
     float diff = max(dot(N, L), 0.2); // never less than 0.2
 
     // minimum ambient component (so shadows don't turn completely black)
-    float ambient = 0.4;
     vec3 litColor = baseColor * (ambient + diff * 0.75);
 
     // Fog calculation

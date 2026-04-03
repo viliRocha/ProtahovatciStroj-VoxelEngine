@@ -113,8 +113,10 @@ func RenderVoxels(game *load.Game) {
 				lightIntensity := calculateLightIntensity(it.Position, game.LightPosition)
 				litColor := applyLighting(it.Color, lightIntensity)
 			*/
+			p := rl.NewVector3(it.Position.X, float32(pkg.CloudHeight), it.Position.Z)
+
 			if ShowClouds {
-				rl.DrawCube(it.Position, 1.0, 0.0, 1.0, it.Color)
+				rl.DrawCube(p, 1.0, 0.0, 1.0, it.Color)
 			}
 		}
 	}
@@ -144,6 +146,10 @@ func applyUnderwaterEffect(game *load.Game) {
 				// apply blue overlay
 				rl.SetBlendMode(rl.BlendMode(0))
 				rl.DrawRectangle(0, 0, int32(rl.GetScreenWidth()), int32(rl.GetScreenHeight()), rl.NewColor(0, 0, 255, 100))
+
+				if shouldRain == 1 {
+					rl.SetMusicVolume(load.RainSound, currentVolume*0.3)
+				}
 			}
 		}
 	}
@@ -152,14 +158,16 @@ func applyUnderwaterEffect(game *load.Game) {
 var shouldRain = 0
 var nextWeatherChange = 0
 
-var stormSkyColor = rl.NewColor(120, 120, 120, 255) // grey
-var clearSkyColor = rl.NewColor(150, 208, 233, 255) // normal blue
+var targetFogDensity = float32(1)
 
-var stormFog float32 = 0.2
-var stormFogColor = []float32{0.5, 0.5, 0.5, 1.0} // grey
-
-var clearFog float32 = 0.072
-var clearFogColor = []float32{0.588, 0.816, 0.914, 1.0} // grey
+func colorToVec4(c rl.Color) []float32 {
+	return []float32{
+		float32(c.R) / 255.0,
+		float32(c.G) / 255.0,
+		float32(c.B) / 255.0,
+		float32(c.A) / 255.0,
+	}
+}
 
 func RenderGame(game *load.Game) {
 	rl.BeginDrawing()
@@ -171,10 +179,17 @@ func RenderGame(game *load.Game) {
 	// Only change the climate when the scheduled time comes
 	if load.ElapsedSeconds >= nextWeatherChange {
 		shouldRain = rand.Intn(3)
-		nextWeatherChange = load.ElapsedSeconds + 20 // shedules next change
+		nextWeatherChange = load.ElapsedSeconds + 60 // shedules next change
 	}
 
 	updateSkyColor()
+
+	updateFog(game, targetFogDensity, colorToVec4(skyColor))
+
+	updateAmbient()
+
+	locAmbient := rl.GetShaderLocation(game.Shader, "ambient")
+	rl.SetShaderValue(game.Shader, locAmbient, []float32{load.Ambient}, rl.ShaderUniformFloat)
 
 	rl.BeginMode3D(game.Camera)
 
@@ -182,22 +197,22 @@ func RenderGame(game *load.Game) {
 	RenderVoxels(game)
 
 	if shouldRain == 1 {
-		targetSkyColor = stormSkyColor
+		targetFogDensity = 1.5
 
-		updateFog(game, stormFog, stormFogColor)
+		updateRainAudio(1.0)
 
 		// only initializes if there are not enough particles yet.
-		if len(pkg.RainDrops) < 300 {
-			initRain(game, 300, 30)
+		if len(pkg.RainDrops) < 400 {
+			initRain(game, 400, 40)
 		}
 
-		updateRain(game, 30)
+		updateRain(game, 40)
 
 		drawRain()
 	} else {
-		targetSkyColor = clearSkyColor
+		targetFogDensity = 1
 
-		updateFog(game, clearFog, clearFogColor)
+		updateRainAudio(0.0)
 
 		// clean up particles when it stops raining.
 		pkg.RainDrops = nil

@@ -30,6 +30,8 @@ var FogColor = []float32{0.588, 0.816, 0.914, 1.0} // clearSky
 
 var FogCoefficient float32 = 0.072
 
+var Ambient float32 = 0.4
+
 var startTime time.Time
 var ElapsedSeconds int
 
@@ -40,6 +42,14 @@ func initTimer() {
 func UpdateTimer() {
 	elapsed := time.Since(startTime)
 	ElapsedSeconds = int(elapsed.Seconds())
+}
+
+var RainSound rl.Music
+
+func initAudio() {
+	RainSound = rl.LoadMusicStream("./assets/sounds/drizzle.mp3")
+	rl.SetMusicVolume(RainSound, 0.0)
+	rl.PlayMusicStream(RainSound)
 }
 
 type Game struct {
@@ -100,6 +110,9 @@ func InitGame() Game {
 	//fmt.Println(fogDensity)
 	rl.SetShaderValue(Shader, locFogDensity, []float32{fogDensity}, rl.ShaderUniformFloat)
 
+	locAmbient := rl.GetShaderLocation(Shader, "ambient")
+	rl.SetShaderValue(Shader, locAmbient, []float32{Ambient}, rl.ShaderUniformFloat)
+
 	locFogColor := rl.GetShaderLocation(Shader, "fogColor")
 	rl.SetShaderValue(Shader, locFogColor, FogColor, rl.ShaderUniformVec4)
 
@@ -108,6 +121,8 @@ func InitGame() Game {
 
 	//	Start weather & time cycle
 	initTimer()
+
+	initAudio()
 
 	// Load .vox models
 	for i := 0; i < len(pkg.PlantModels); i++ {
