@@ -60,6 +60,11 @@ func renderMenu(menuX, menuY, width int32) {
 		fmt.Sprintf("Fog Density: %.3f", load.FogCoefficient),
 	)
 
+	newGuiSlider(menuX+20, menuY+560+offsetY, float32(width-40), 40.0,
+		&baseVolume, 0.0, 1.0,
+		fmt.Sprintf("Sound FX Volume: %.3f", baseVolume),
+	)
+
 	rl.EndScissorMode()
 }
 

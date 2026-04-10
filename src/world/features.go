@@ -96,11 +96,13 @@ func generatePlants(chunk *pkg.Chunk, chunkPos rl.Vector3, oldPlants []pkg.Plant
 		}
 		return
 	}
-	plantCount := pkg.ChunkSize / 2
+	plantCount := pkg.ChunkSize / 4
 
 	for i := 0; i < plantCount; i++ {
 		x := rand.Intn(pkg.ChunkSize)
 		z := rand.Intn(pkg.ChunkSize)
+
+		biome := chunk.BiomeMap[x][z]
 
 		height := chunk.HeightMap[x][z]
 
@@ -112,17 +114,30 @@ func generatePlants(chunk *pkg.Chunk, chunkPos rl.Vector3, oldPlants []pkg.Plant
 		if chunk.Voxels[x][height][z].Type == "Grass" &&
 			chunk.Voxels[x][height+1][z].Type == "Air" &&
 			height > waterLevel {
-			// Randomly define a model for the plant
-			randomModel := rand.Intn(4) // 0 - 3
-			chunk.Voxels[x][height+1][z] = pkg.VoxelData{
-				Type:  "Plant",
-				Model: pkg.PlantModels[randomModel],
+
+			if biome.PlantTypes != nil && len(biome.PlantTypes) > 0 {
+				// Escolhe um índice aleatório dentro da lista de PlantTypes
+				idx := rand.Intn(len(biome.PlantTypes))
+				randomModel := biome.PlantTypes[idx]
+
+				// plant_0: short grass - all biomes
+				// plant_1: taller grass - all biomes
+				// plant_2: orange flower -  savanna
+				// plant_3: red flower - meadow and savanna
+				// plant_4: light purple flower - meadow
+				// plant_5: yellow flower - birchwood biome
+				// plant_6: blooming blue grass - birchwood biome
+				// plant_7: mushroom (I know they thecnically aren't plants 🤓) - birchwood biome
+				chunk.Voxels[x][height+1][z] = pkg.VoxelData{
+					Type:  "Plant",
+					Model: pkg.PlantModels[randomModel],
+				}
+				plantPos := rl.NewVector3(chunkPos.X+float32(x), float32(height+1), chunkPos.Z+float32(z))
+				chunk.Plants = append(chunk.Plants, pkg.PlantData{
+					Position: plantPos,
+					ModelID:  randomModel,
+				})
 			}
-			plantPos := rl.NewVector3(chunkPos.X+float32(x), float32(height+1), chunkPos.Z+float32(z))
-			chunk.Plants = append(chunk.Plants, pkg.PlantData{
-				Position: plantPos,
-				ModelID:  randomModel,
-			})
 		}
 	}
 }

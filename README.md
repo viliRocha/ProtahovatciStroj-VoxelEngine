@@ -1,5 +1,5 @@
-# PtotahovatsiStroj
-### v0.13.8
+# PtotahovatciStroj
+### v0.14.1
 <center><img src="./img/engine_logo.png" alt="Logo" width="100%"></center>
 
 A voxel engine built using **raylib-go** and **OpenGL**
@@ -35,7 +35,6 @@ To get started with the voxel engine, clone the repository and open the folder. 
 - **Mouse Left Button**: Lock cursor.
 - **Camera**: WASD movement, mouse to look.
 - **Tab**: Open settings menu.
-- **Esc**: To close the window.
 
 ## License 📄
 This project is licensed under the MIT License - see the `LICENSE` file for details.

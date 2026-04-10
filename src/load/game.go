@@ -1,6 +1,7 @@
 package load
 
 import (
+	_ "embed"
 	"fmt"
 	"math/rand"
 	"time"
@@ -12,6 +13,15 @@ import (
 	gui "github.com/gen2brain/raylib-go/raygui"
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
+
+//go:embed shaders/shader.vs
+var shadeVS string
+
+//go:embed shaders/shader.fs
+var shadeFS string
+
+//go:embed sounds/drizzle.mp3
+var RainSoundData []byte
 
 const (
 	ScreenWidth  int32 = 1000
@@ -47,7 +57,7 @@ func UpdateTimer() {
 var RainSound rl.Music
 
 func initAudio() {
-	RainSound = rl.LoadMusicStream("./assets/sounds/drizzle.mp3")
+	RainSound = rl.LoadMusicStreamFromMemory(".mp3", RainSoundData, int32(len(RainSoundData)))
 	rl.SetMusicVolume(RainSound, 0.0)
 	rl.PlayMusicStream(RainSound)
 }
@@ -71,6 +81,9 @@ func InitGame() Game {
 
 	// Disable INFO logs, only show errors
 	rl.SetTraceLogLevel(rl.LogError)
+
+	// That way the Esc key doesn't exit the game
+	rl.SetExitKey(0)
 
 	camera := rl.Camera{
 		Position:   rl.NewVector3(2.79, 62.0, 10.0),
@@ -99,7 +112,8 @@ func InitGame() Game {
 	worley := world.NewWorleyNoise(seed1, 128)
 	biomeSel := world.NewBiomeSelector(seed1, 128)
 
-	Shader := rl.LoadShader("shaders/shader.vs", "shaders/shader.fs")
+	//Shader := rl.LoadShader("shaders/shader.vs", "shaders/shader.fs")
+	Shader := rl.LoadShaderFromMemory(shadeVS, shadeFS)
 
 	// Locations (do not index shader.Locs)
 	locFogDensity := rl.GetShaderLocation(Shader, "fogDensity")

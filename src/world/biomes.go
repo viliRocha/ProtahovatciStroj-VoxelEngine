@@ -15,6 +15,7 @@ var BiomeTypes = map[string]*pkg.BiomeProperties{
 		Modifier:         meadowModifier,
 		SurfaceBlock:     "Grass",
 		UndergroundBlock: "Dirt",
+		PlantTypes:       []int32{0, 1, 3, 4},
 		TreeTypes: []string{
 			"F=F[FA(3)L][FA(3)L][FA(3)L]A(3)",
 			"F=F[F+A(5)L][−A(5)L][/A(4)L][\\A(4)L]",
@@ -29,6 +30,7 @@ var BiomeTypes = map[string]*pkg.BiomeProperties{
 		Modifier:         birchwoodModifier,
 		SurfaceBlock:     "Grass",
 		UndergroundBlock: "Dirt",
+		PlantTypes:       []int32{0, 1, 5, 6, 7},
 		TreeTypes: []string{
 			"F=F[-A(2)L]F[/A(2)L]F[+A(1)L]",
 			"F=FF[FA(2)L][FA(3)L][FA(4)L]",
@@ -42,6 +44,7 @@ var BiomeTypes = map[string]*pkg.BiomeProperties{
 		Modifier:         savannaModifier,
 		SurfaceBlock:     "Grass",
 		UndergroundBlock: "Dirt",
+		PlantTypes:       []int32{0, 1, 2, 3},
 		TreeTypes: []string{
 			"F=F[FA(3)L][FA(3)L][FA(3)L]A(3)",
 			"F=F[+FA(4)L][-A(4)L][\\A(4)L]",
@@ -54,6 +57,7 @@ var BiomeTypes = map[string]*pkg.BiomeProperties{
 		Modifier:         desertModifier,
 		SurfaceBlock:     "Sand",
 		UndergroundBlock: "Sand",
+		PlantTypes:       nil,
 	},
 }
 

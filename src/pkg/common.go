@@ -5,7 +5,7 @@ import (
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
 
-var PlantModels [4]rl.Model
+var PlantModels [8]rl.Model
 
 var ChunkDistance int = 5
 var CloudHeight int = 80
@@ -25,7 +25,7 @@ type VoxelData struct {
 // Stores plant positions
 type PlantData struct {
 	Position rl.Vector3
-	ModelID  int
+	ModelID  int32
 }
 
 type TreeData struct {
@@ -79,6 +79,7 @@ type BiomeProperties struct {
 	Modifier         HeightFunc
 	SurfaceBlock     string
 	UndergroundBlock string
+	PlantTypes       []int32
 	TreeTypes        []string
 	TreeDensity      float32
 	GrassColor       rl.Color

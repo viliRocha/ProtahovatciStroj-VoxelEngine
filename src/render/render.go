@@ -51,7 +51,7 @@ func RenderVoxels(game *load.Game) {
 				pos := rl.NewVector3(
 					chunkPos.X+float32(voxel.Position.X),
 					chunkPos.Y+float32(voxel.Position.Y),
-					chunkPos.Z+float32(voxel.Position.Z))
+					chunkPos.Z+float32(voxel.Position.Z)-0.8) // The plant model is a little off center so i just udjust it a little
 				rl.DrawModel(voxel.Model, pos, 0.4, rl.White)
 			}
 		}
@@ -178,7 +178,7 @@ func RenderGame(game *load.Game) {
 
 	// Only change the climate when the scheduled time comes
 	if load.ElapsedSeconds >= nextWeatherChange {
-		shouldRain = rand.Intn(3)
+		shouldRain = rand.Intn(4)
 		nextWeatherChange = load.ElapsedSeconds + 60 // shedules next change
 	}
 
@@ -231,7 +231,7 @@ func RenderGame(game *load.Game) {
 		// Visible menu area
 		menuBounds := rl.NewRectangle(float32(menuX), float32(menuY), float32(menuWidth), float32(menuHeight))
 
-		contentHeight := float32(600) // Actual height of the content, including what is not visible.
+		contentHeight := float32(700) // Actual height of the content, including what is not visible.
 		contentBounds := rl.NewRectangle(0, 0, float32(menuWidth-20), contentHeight)
 
 		gui.ScrollPanel(menuBounds, "Game settings", contentBounds, &menuScroll, &menuView)
