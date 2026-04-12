@@ -3,6 +3,7 @@ package render
 import (
 	"go-engine/src/load"
 	"go-engine/src/pkg"
+	"go-engine/src/world"
 	"math/rand"
 
 	rl "github.com/gen2brain/raylib-go/raylib"
@@ -32,23 +33,54 @@ func lerpColor(a, b rl.Color, f float32) rl.Color {
 		uint8(float32(a.R)+f*(float32(b.R)-float32(a.R))),
 		uint8(float32(a.G)+f*(float32(b.G)-float32(a.G))),
 		uint8(float32(a.B)+f*(float32(b.B)-float32(a.B))),
-		255,
+		a.A,
 	)
+}
+
+func darkenColor(c rl.Color, factor float32) rl.Color {
+	return rl.NewColor(
+		uint8(float32(c.R)*factor),
+		uint8(float32(c.G)*factor),
+		uint8(float32(c.B)*factor),
+		c.A,
+	)
+}
+
+// Returns a light factor between 0.3 (night) and 1.0 (day).
+func getCloudLightFactor(t float32) float32 {
+	if t < 0.20 {
+		return 1.0 // 0.5 → 1.0
+	} else if t < 0.4 {
+		return 1.0 - ((t-0.20)/0.2)*0.2 // drops from 1.0 → 0.8
+	} else if t < 0.60 {
+		return 0.8 - ((t-0.4)/0.2)*0.5 // drops from 0.8 → 0.3
+	} else {
+		return 0.3 + ((t-0.6)/0.4)*0.7 // 0.3 → 1.0
+	}
 }
 
 func getDayColor() rl.Color {
 	//	"%" what is left from the division
 	t := float32(load.ElapsedSeconds%int(dayLength)) / dayLength
 
+	var sky rl.Color
+
 	if t < 0.20 { // morning → noon..
-		return lerpColor(morningSky, noonSky, t/0.20)
+		sky = lerpColor(morningSky, noonSky, t/0.20)
 	} else if t < 0.40 {
-		return lerpColor(noonSky, eveningSky, (t-0.20)/0.20)
+		sky = lerpColor(noonSky, eveningSky, (t-0.20)/0.20)
 	} else if t < 0.60 {
-		return lerpColor(eveningSky, nightSky, (t-0.40)/0.20)
+		sky = lerpColor(eveningSky, nightSky, (t-0.40)/0.20)
 	} else {
-		return lerpColor(nightSky, morningSky, (t-0.60)/0.40)
+		sky = lerpColor(nightSky, morningSky, (t-0.60)/0.40)
 	}
+
+	// aplica escurecimento suave às nuvens
+	lightFactor := getCloudLightFactor(t)
+	cloudBase := world.BlockTypes["Cloud"].Color
+	cloudColor = darkenColor(cloudBase, lightFactor)
+
+	return sky
 }
 
 func updateSkyColor() {

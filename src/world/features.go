@@ -116,7 +116,7 @@ func generatePlants(chunk *pkg.Chunk, chunkPos rl.Vector3, oldPlants []pkg.Plant
 			height > waterLevel {
 
 			if biome.PlantTypes != nil && len(biome.PlantTypes) > 0 {
-				// Escolhe um índice aleatório dentro da lista de PlantTypes
+				// Choose a random index from the list of PlantTypes.
 				idx := rand.Intn(len(biome.PlantTypes))
 				randomModel := biome.PlantTypes[idx]
 

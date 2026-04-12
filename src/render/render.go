@@ -13,6 +13,8 @@ import (
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
 
+var cloudColor rl.Color = world.BlockTypes["Cloud"].Color
+
 func RenderVoxels(game *load.Game) {
 	cam := game.Camera.Position
 
@@ -116,7 +118,7 @@ func RenderVoxels(game *load.Game) {
 			p := rl.NewVector3(it.Position.X, float32(pkg.CloudHeight), it.Position.Z)
 
 			if ShowClouds {
-				rl.DrawCube(p, 1.0, 0.0, 1.0, it.Color)
+				rl.DrawCube(p, 1.0, 0.0, 1.0, cloudColor)
 			}
 		}
 	}

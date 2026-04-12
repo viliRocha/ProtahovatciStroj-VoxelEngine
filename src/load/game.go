@@ -1,9 +1,11 @@
 package load
 
 import (
+	"embed"
 	_ "embed"
 	"fmt"
 	"math/rand"
+	"os"
 	"time"
 
 	"go-engine/src/pkg"
@@ -20,8 +22,39 @@ var shadeVS string
 //go:embed shaders/shader.fs
 var shadeFS string
 
-//go:embed sounds/drizzle.mp3
+//go:embed assets/sounds/drizzle.mp3
 var RainSoundData []byte
+
+//go:embed assets/plants/*.vox
+var plantFS embed.FS
+
+var TempPlantFiles []string
+
+// Creates a temporary file for the plant model because raylib doesn't have a loadModelFromMemory function
+func loadEmbeddedModel(name string) rl.Model {
+	// Reads the bytes of the embedded file
+	data, err := plantFS.ReadFile("assets/plants/" + name)
+	if err != nil {
+		panic(err)
+	}
+
+	// Creates a temporary file with the .vox extension.
+	tmpFile, err := os.CreateTemp("", name+"*.vox")
+	if err != nil {
+		panic(err)
+	}
+	defer tmpFile.Close() // Ensures that the file will be closed when the function exits.
+
+	// Writes the embedded model bytes into the temporary file.
+	if _, err := tmpFile.Write(data); err != nil {
+		panic(err)
+	}
+
+	// Save the path to remove later.
+	TempPlantFiles = append(TempPlantFiles, tmpFile.Name())
+
+	return rl.LoadModel(tmpFile.Name())
+}
 
 const (
 	ScreenWidth  int32 = 1000
@@ -83,7 +116,7 @@ func InitGame() Game {
 	rl.SetTraceLogLevel(rl.LogError)
 
 	// That way the Esc key doesn't exit the game
-	rl.SetExitKey(0)
+	//rl.SetExitKey(0)
 
 	camera := rl.Camera{
 		Position:   rl.NewVector3(2.79, 62.0, 10.0),
@@ -138,9 +171,11 @@ func InitGame() Game {
 
 	initAudio()
 
-	// Load .vox models
+	// load .vox models
 	for i := 0; i < len(pkg.PlantModels); i++ {
-		pkg.PlantModels[i] = rl.LoadModel(fmt.Sprintf("assets/plants/plant_%d.vox", i))
+		pkg.PlantModels[i] = loadEmbeddedModel(fmt.Sprintf("plant_%d.vox", i))
+
+		//fmt.Println("Model loaded:", fmt.Sprintf("plant_%d.vox", i), "MeshCount:", pkg.PlantModels[i].MeshCount)
 
 		// Ensure the material is valid and apply shader
 		if pkg.PlantModels[i].MaterialCount == 0 || pkg.PlantModels[i].Materials == nil {

@@ -2,14 +2,18 @@ package main
 
 import (
 	"go-engine/src/load"
-	"go-engine/src/pkg"
 	"go-engine/src/render"
 	"go-engine/src/world"
+	"os"
 
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
 
-var prevCloudHeight = pkg.CloudHeight
+func cleanupTempFiles() {
+	for _, f := range load.TempPlantFiles {
+		os.Remove(f) // Ignore errors, as they may no longer exist.
+	}
+}
 
 func main() {
 	rl.InitAudioDevice()
@@ -49,4 +53,6 @@ func main() {
 
 	// After the loop ends:
 	defer rl.CloseWindow()
+
+	cleanupTempFiles()
 }
