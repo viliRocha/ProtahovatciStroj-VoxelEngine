@@ -7,7 +7,7 @@ import (
 
 var PlantModels [8]rl.Model
 
-var ChunkDistance int = 5
+var ChunkDistance int = 3
 var CloudHeight int = 80
 
 const (
@@ -48,6 +48,7 @@ type TransparentItem struct {
 }
 
 type Chunk struct {
+	Coord     Coords // Chunk position -> used for chunk managment
 	Voxels    [ChunkSize][WorldHeight][ChunkSize]VoxelData
 	HeightMap [ChunkSize][ChunkSize]int // final height per terrain column
 	BiomeMap  [ChunkSize][ChunkSize]BiomeProperties

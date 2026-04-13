@@ -21,6 +21,7 @@ func RenderVoxels(game *load.Game) {
 	rl.SetShaderValue(game.Shader, rl.GetShaderLocation(game.Shader, "viewPos"), []float32{cam.X, cam.Y, cam.Z}, rl.ShaderUniformVec3)
 
 	// --- Round 1: solids ---
+	game.ChunkCache.CacheMutex.RLock()
 	for coord, chunk := range game.ChunkCache.Active {
 		// Converts chunk coordinate to actual position
 		chunkPos := rl.NewVector3(
@@ -39,8 +40,10 @@ func RenderVoxels(game *load.Game) {
 			rl.DrawModel(chunk.Model, chunkPos, 1.0, rl.White)
 		}
 	}
+	game.ChunkCache.CacheMutex.RUnlock()
 
 	// --- Passage 2: plants per chunk (without global sorting) ---
+	game.ChunkCache.CacheMutex.RLock()
 	for coord, chunk := range game.ChunkCache.Active {
 		chunkPos := rl.NewVector3(
 			float32(coord.X*pkg.ChunkSize),
@@ -58,10 +61,12 @@ func RenderVoxels(game *load.Game) {
 			}
 		}
 	}
+	game.ChunkCache.CacheMutex.RUnlock()
 
 	// --- Global collection of transparencies ---
 	var transparentItems []pkg.TransparentItem
 
+	game.ChunkCache.CacheMutex.RLock()
 	for coord, chunk := range game.ChunkCache.Active {
 		chunkPos := rl.NewVector3(
 			float32(coord.X*pkg.ChunkSize),
@@ -84,6 +89,7 @@ func RenderVoxels(game *load.Game) {
 			})
 		}
 	}
+	game.ChunkCache.CacheMutex.RUnlock()
 
 	// --- Back-to-front sorting ---
 	if game.Camera.Position.Y >= float32(pkg.CloudHeight) {

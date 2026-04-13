@@ -1,5 +1,5 @@
 # PtotahovatciStroj
-### v0.14.2
+### v0.14.5
 <center><img src="./img/engine_logo.png" alt="Logo" width="100%"></center>
 
 A voxel engine built using **raylib-go** and **OpenGL**
@@ -12,12 +12,13 @@ A voxel engine built using **raylib-go** and **OpenGL**
 - **Biome Diversity**: Various biomes with different topographies determined by Worley noise.
 - **Basic Shading**: Combines ambient with directional lighting for better depth perception.
 - **Atmospheric effects**: Atmospheric depth with fog and basic clouds.
-- **Cache System**: Efficiently stored surface features positions, providing better world consistency.
-- **Game Settings**: Configuration menu accessible by pressing "Tab". There players can configure the view distance, FPS limits, world rules (weather, day/night cycle and add/remove or change cloud height), and toggle debug such as FPS and player position.
+- **Cache System**: Efficiently stored surface feature positions, providing better world consistency.
+- **Asyncronous Chunk Loading**: Chunks loaded in parallel using a worker pool outside the main game loop. 
+- **Game Settings**: Configuration menu accessible by pressing "Tab". There, players can configure the view distance, FPS limits, world rules (weather, day/night cycle and add/remove or change cloud height), and toggle debug, such as FPS and player position.
 - **Dynamic Weather & Time Cycle**: Weather effects such as rain and snow, and day/night cycle.
 
 ## Upcoming Features 📋
-- **Advanced Optimizations**: Algorithms such as Fustrum Cooling and Greedy Meshing for better performance.
+- **Advanced Optimizations**: Algorithms such as Fustrum Cooling and Occlusion Cooling for better performance.
 - **Smooth Lighting**: Improved lighting using vertex lighting and baked ambient occlusion.
 - **Block Interaction**: Enable players to place and destroy blocks.
 - **Web Build**: Compile the project to WASM.

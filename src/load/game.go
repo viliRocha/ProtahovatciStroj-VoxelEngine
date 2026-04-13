@@ -196,6 +196,8 @@ func InitGame() Game {
 
 	chunkCache.Active[originCoord] = world.GenerateChunk(worley, biomeSel, originPos, perlin1, perlin2, perlin3, chunkCache, nil, false, nil, false)
 
+	world.StartChunkWorkers(worley, biomeSel, chunkCache, perlin1, perlin2, perlin3)
+
 	//	That value can later be changed in game, it is just initialized here
 	rl.SetTargetFPS(60)
 

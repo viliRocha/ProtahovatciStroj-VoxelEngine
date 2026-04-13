@@ -20,6 +20,7 @@ type PendingWrite struct {
 
 type ChunkCache struct {
 	Active        map[pkg.Coords]*pkg.Chunk      // chunks that are loaded, meshed, and ready to render.
+	Loading       map[pkg.Coords]bool            // avoid duplication when enqueuing chunks
 	PlantsCache   map[pkg.Coords][]pkg.PlantData // persistent plants by chunk
 	TreesCache    map[pkg.Coords][]pkg.TreeData
 	PendingVoxels map[pkg.Coords][]PendingWrite // queue of voxel modifications that haven’t yet been applied to the chunk
@@ -30,6 +31,7 @@ func NewChunkCache() *ChunkCache {
 	// Creates a hash map to store voxel data
 	return &ChunkCache{
 		Active:        make(map[pkg.Coords]*pkg.Chunk),
+		Loading:       make(map[pkg.Coords]bool),
 		PlantsCache:   make(map[pkg.Coords][]pkg.PlantData),
 		TreesCache:    make(map[pkg.Coords][]pkg.TreeData),
 		PendingVoxels: make(map[pkg.Coords][]PendingWrite),
@@ -57,13 +59,19 @@ func (cc *ChunkCache) GetChunk(worley *WorleyNoise, biomeSel *BiomeSelector, pos
 
 	if exists {
 		newChunk = GenerateChunk(worley, biomeSel, position, p1, p2, p3, cc, oldPlants, true, oldTrees, true)
+
+		newChunk.Coord = coord
 	} else {
 		// First time the chunk is generated
 		// If there are saved plants, reuse them; if not, create new ones
 		if (hasPlants && len(oldPlants) > 0) || (hasTrees && len(oldTrees) > 0) {
 			newChunk = GenerateChunk(worley, biomeSel, position, p1, p2, p3, cc, oldPlants, true, oldTrees, true)
+
+			newChunk.Coord = coord
 		} else {
 			newChunk = GenerateChunk(worley, biomeSel, position, p1, p2, p3, cc, nil, false, nil, false)
+
+			newChunk.Coord = coord
 		}
 	}
 
@@ -80,6 +88,7 @@ func (cc *ChunkCache) GetChunk(worley *WorleyNoise, biomeSel *BiomeSelector, pos
 				w.Pos[1] >= 0 && w.Pos[1] < pkg.WorldHeight &&
 				w.Pos[2] >= 0 && w.Pos[2] < pkg.ChunkSize {
 				newChunk.Voxels[w.Pos[0]][w.Pos[1]][w.Pos[2]] = w.Voxel
+				//cc.MarkOutdated(coord)
 			}
 		}
 		newChunk.IsOutdated = true
@@ -121,56 +130,65 @@ func (cc *ChunkCache) CleanUp(playerPosition rl.Vector3) {
 	}
 }
 
-func ManageChunks(worley *WorleyNoise, biomeSel *BiomeSelector, playerPosition rl.Vector3, chunkCache *ChunkCache, p1, p2, p3 *perlin.Perlin) {
-	playerCoord := ToChunkCoord(playerPosition)
+// global channel for ready-made chunks
+var readyChunks = make(chan *pkg.Chunk, 200)
 
-	chunkRequests := make(chan rl.Vector3, 100)
-	done := make(chan struct{})
+var chunkRequests = make(chan pkg.Coords, 200)
 
-	// Worker pool
+// Initializes the worker pool once at startup
+func StartChunkWorkers(worley *WorleyNoise, biomeSel *BiomeSelector, cache *ChunkCache, p1, p2, p3 *perlin.Perlin) {
 	for i := 0; i < runtime.NumCPU(); i++ {
 		go func() {
-			for cp := range chunkRequests {
-				chunkCache.GetChunk(worley, biomeSel, cp, p1, p2, p3)
+			for coord := range chunkRequests {
+				pos := rl.NewVector3(float32(coord.X*pkg.ChunkSize), 0, float32(coord.Z*pkg.ChunkSize))
+				chunk := cache.GetChunk(worley, biomeSel, pos, p1, p2, p3)
+				readyChunks <- chunk
 			}
-			done <- struct{}{}
 		}()
 	}
+}
+
+func ManageChunks(worley *WorleyNoise, biomeSel *BiomeSelector, playerPosition rl.Vector3, chunkCache *ChunkCache, p1, p2, p3 *perlin.Perlin) {
+	playerCoord := ToChunkCoord(playerPosition)
 
 	// Counter to limit how many chunks are enqueued
 	chunksQueued := 0
 
-	var candidates []pkg.Coords
-
 	// Send the chunk positions to be loaded
 	for x := playerCoord.X - pkg.ChunkDistance; x <= playerCoord.X+pkg.ChunkDistance; x++ {
 		for z := playerCoord.Z - pkg.ChunkDistance; z <= playerCoord.Z+pkg.ChunkDistance; z++ {
-			candidates = append(candidates, pkg.Coords{X: x, Y: 0, Z: z})
-		}
-	}
+			coord := pkg.Coords{X: x, Y: 0, Z: z}
 
-	// Only one verification with lock per frame
-	chunkCache.CacheMutex.RLock()
-	for _, coord := range candidates {
-		chunk, exists := chunkCache.Active[coord]
-		if !exists || (chunk != nil && chunk.IsOutdated) {
-			chunkPos := rl.NewVector3(float32(coord.X*pkg.ChunkSize), 0, float32(coord.Z*pkg.ChunkSize))
+			chunkCache.CacheMutex.RLock()
+			_, exists := chunkCache.Active[coord]
+			loading := chunkCache.Loading[coord]
+			chunkCache.CacheMutex.RUnlock()
 
-			chunkRequests <- chunkPos
+			if !exists && !loading {
+				//	Mark chunk as beeing loaded that way it is lined up in the worker pool only once
+				chunkCache.CacheMutex.Lock()
+				chunkCache.Loading[coord] = true
+				chunkCache.CacheMutex.Unlock()
 
-			chunksQueued++
-
-			if chunksQueued >= MaxChunksPerFrame {
-				break // does not block the loop, only exits
+				chunkRequests <- coord
+				chunksQueued++
+				if chunksQueued >= MaxChunksPerFrame {
+					break
+				}
 			}
 		}
 	}
-	chunkCache.CacheMutex.RUnlock()
-	close(chunkRequests)
 
-	// Wait for all workers to finish
-	for i := 0; i < runtime.NumCPU(); i++ {
-		<-done
+	for i := 0; i < MaxChunksPerFrame; i++ {
+		select {
+		case pc := <-readyChunks:
+			chunkCache.CacheMutex.Lock()
+			chunkCache.Active[pc.Coord] = pc
+			delete(chunkCache.Loading, pc.Coord) // remove da lista de carregamento
+			chunkCache.CacheMutex.Unlock()
+		default:
+			return
+		}
 	}
 
 	// Updates neighbors
@@ -209,21 +227,23 @@ func ManageChunks(worley *WorleyNoise, biomeSel *BiomeSelector, playerPosition r
 func setVoxelGlobal(chunkCache *ChunkCache, globalPos rl.Vector3, voxel pkg.VoxelData) {
 	coord := ToChunkCoord(globalPos)
 
-	// Protect map reading
-	chunkCache.CacheMutex.RLock()
-	chunk := chunkCache.Active[coord]
-	chunkCache.CacheMutex.RUnlock()
-
 	// math.Floor prevents inconsistent rounding that throws blocks into the wrong chunk
 	localX := int(math.Floor(float64(globalPos.X))) - coord.X*pkg.ChunkSize
 	localY := int(math.Floor(float64(globalPos.Y)))
 	localZ := int(math.Floor(float64(globalPos.Z))) - coord.Z*pkg.ChunkSize
 
+	// If the voxel is outside the local boundaries → just skip it
 	if localX < 0 || localX >= pkg.ChunkSize ||
 		localY < 0 || localY >= pkg.WorldHeight ||
 		localZ < 0 || localZ >= pkg.ChunkSize {
+
 		return
 	}
+
+	// Protect map reading
+	chunkCache.CacheMutex.RLock()
+	chunk := chunkCache.Active[coord]
+	chunkCache.CacheMutex.RUnlock()
 
 	if chunk == nil {
 		chunkCache.CacheMutex.Lock()
@@ -233,13 +253,13 @@ func setVoxelGlobal(chunkCache *ChunkCache, globalPos rl.Vector3, voxel pkg.Voxe
 		})
 		chunkCache.CacheMutex.Unlock()
 		return
+	} else {
+		// if multiple goroutines write to the same chunk, consider a mutex per chunk
+		chunkCache.CacheMutex.Lock()
+		chunk.Voxels[localX][localY][localZ] = voxel
+		chunk.IsOutdated = true
+		chunkCache.CacheMutex.Unlock()
 	}
-
-	// if multiple goroutines write to the same chunk, consider a mutex per chunk
-	chunkCache.CacheMutex.Lock()
-	chunk.Voxels[localX][localY][localZ] = voxel
-	chunk.IsOutdated = true
-	chunkCache.CacheMutex.Unlock()
 }
 
 // Function to calculate the absolute value
