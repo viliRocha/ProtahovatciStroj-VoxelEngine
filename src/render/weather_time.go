@@ -11,6 +11,8 @@ import (
 
 var dayLength = float32(160.0) // day duration in seconds
 
+var timeCycle = true //	Enables or disables day/night cycle
+
 var stormSkyColor = rl.NewColor(120, 120, 120, 255) // grey
 
 var morningSky = rl.NewColor(200, 220, 255, 255) // light Blue
@@ -60,19 +62,25 @@ func getCloudLightFactor(t float32) float32 {
 }
 
 func getDayColor() rl.Color {
-	//	"%" what is left from the division
-	t := float32(load.ElapsedSeconds%int(dayLength)) / dayLength
+	//	If dayLength is set to 0, the time will remain morning
+	t := float32(0.0)
 
 	var sky rl.Color
 
-	if t < 0.20 { // morning → noon..
-		sky = lerpColor(morningSky, noonSky, t/0.20)
-	} else if t < 0.40 {
-		sky = lerpColor(noonSky, eveningSky, (t-0.20)/0.20)
-	} else if t < 0.60 {
-		sky = lerpColor(eveningSky, nightSky, (t-0.40)/0.20)
+	if timeCycle {
+		t = float32(load.ElapsedSeconds%int(dayLength)) / dayLength
+
+		if t < 0.20 { // morning → noon..
+			sky = lerpColor(morningSky, noonSky, t/0.20)
+		} else if t < 0.40 {
+			sky = lerpColor(noonSky, eveningSky, (t-0.20)/0.20)
+		} else if t < 0.60 {
+			sky = lerpColor(eveningSky, nightSky, (t-0.40)/0.20)
+		} else {
+			sky = lerpColor(nightSky, morningSky, (t-0.60)/0.40)
+		}
 	} else {
-		sky = lerpColor(nightSky, morningSky, (t-0.60)/0.40)
+		sky = skyColor
 	}
 
 	// aplica escurecimento suave às nuvens
@@ -110,16 +118,22 @@ func updateSkyColor() {
 
 // Ambient light configured via shader
 func updateAmbient() {
-	t := float32(load.ElapsedSeconds%int(dayLength)) / dayLength
+	t := float32(0.0)
 
-	if t < 0.20 { // morning
-		load.Ambient = 0.4 + 0.1*(t/0.20) // sobe de 0.1 até 0.4
-	} else if t < 0.40 { // midday
-		load.Ambient = 0.6 // max
-	} else if t < 0.60 { // afternoon
-		load.Ambient = 0.4 - 0.2*((t-0.4)/0.20) // reduce ambient
-	} else { // night
-		load.Ambient = 0.1 + 0.2*((t-0.6)/0.40)
+	if timeCycle {
+		t = float32(load.ElapsedSeconds%int(dayLength)) / dayLength
+
+		if t < 0.20 { // morning
+			load.Ambient = 0.4 + 0.1*(t/0.20) // sobe de 0.1 até 0.4
+		} else if t < 0.40 { // midday
+			load.Ambient = 0.6 // max
+		} else if t < 0.60 { // afternoon
+			load.Ambient = 0.4 - 0.2*((t-0.4)/0.20) // reduce ambient
+		} else { // night
+			load.Ambient = 0.1 + 0.2*((t-0.6)/0.40)
+		}
+	} else {
+		return
 	}
 }
 

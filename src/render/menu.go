@@ -50,17 +50,24 @@ func renderMenu(menuX, menuY, width int32) {
 		fmt.Sprintf("Cloud Height: %d", pkg.CloudHeight),
 	)
 
-	newGuiSlider(menuX+20, menuY+380+offsetY, float32(width-40), 40.0,
-		&pkg.ChunkDistance, 1, 10,
+	newButton(menuX+20, menuY+380+offsetY, float32(width-40), 40.0, &timeCycle, "Day/Night Cycle:")
+
+	newGuiSlider(menuX+20, menuY+440+offsetY, float32(width-40), 40.0,
+		&dayLength, 1, 480,
+		fmt.Sprintf("Day Duration (Seconds): %.2f", dayLength),
+	)
+
+	newGuiSlider(menuX+20, menuY+530+offsetY, float32(width-40), 40.0,
+		&pkg.ChunkDistance, 1, 15,
 		fmt.Sprintf("View Distance: %d", pkg.ChunkDistance),
 	)
 
-	newGuiSlider(menuX+20, menuY+470+offsetY, float32(width-40), 40.0,
+	newGuiSlider(menuX+20, menuY+620+offsetY, float32(width-40), 40.0,
 		&load.FogCoefficient, 0.0, 0.1,
 		fmt.Sprintf("Fog Density: %.3f", load.FogCoefficient),
 	)
 
-	newGuiSlider(menuX+20, menuY+560+offsetY, float32(width-40), 40.0,
+	newGuiSlider(menuX+20, menuY+700+offsetY, float32(width-40), 40.0,
 		&baseVolume, 0.0, 1.0,
 		fmt.Sprintf("Sound FX Volume: %.3f", baseVolume),
 	)

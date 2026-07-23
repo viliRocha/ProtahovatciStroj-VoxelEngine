@@ -39,5 +39,10 @@ void main() {
     float fogFactor = 1.0/exp((dist*fogDensity)*(dist*fogDensity));
     fogFactor = clamp(fogFactor, 0.0, 1.0);
 
-    finalColor = mix(fogColor, vec4(litColor, 1.0), fogFactor);
+    //finalColor = mix(fogColor, vec4(litColor, 1.0), fogFactor);
+	vec4 color = vec4(litColor, colDiffuse.a);
+
+	vec4 fogged = mix(fogColor, color, fogFactor);
+
+	finalColor = vec4(fogged.rgb, color.a);
 }

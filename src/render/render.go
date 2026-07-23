@@ -115,7 +115,8 @@ func RenderVoxels(game *load.Game) {
 				litColor := applyLighting(it.Color, lightIntensity)
 			*/
 
-			rl.DrawPlane(p, rl.NewVector2(1.0, 1.0), it.Color)
+			//rl.DrawPlane(p, rl.NewVector2(1.0, 1.0), it.Color)
+			rl.DrawModel(game.WaterModel, p, 1.0, world.BlockTypes["Water"].Color)
 		case "Cloud":
 			/*
 				lightIntensity := calculateLightIntensity(it.Position, game.LightPosition)
@@ -138,7 +139,11 @@ func applyUnderwaterEffect(game *load.Game) {
 	waterLevel := int(float64(pkg.WorldHeight)*pkg.WaterLevelFraction) + 1
 
 	coord := world.ToChunkCoord(game.Camera.Position)
+
+	//	Protect cache reading
+	game.ChunkCache.CacheMutex.RLock()
 	chunk := game.ChunkCache.Active[coord]
+	game.ChunkCache.CacheMutex.RUnlock()
 
 	if chunk != nil {
 		localX := int(game.Camera.Position.X) - coord.X*pkg.ChunkSize
@@ -239,7 +244,7 @@ func RenderGame(game *load.Game) {
 		// Visible menu area
 		menuBounds := rl.NewRectangle(float32(menuX), float32(menuY), float32(menuWidth), float32(menuHeight))
 
-		contentHeight := float32(700) // Actual height of the content, including what is not visible.
+		contentHeight := float32(750) // Actual height of the content, including what is not visible.
 		contentBounds := rl.NewRectangle(0, 0, float32(menuWidth-20), contentHeight)
 
 		gui.ScrollPanel(menuBounds, "Game settings", contentBounds, &menuScroll, &menuView)

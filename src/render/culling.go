@@ -309,12 +309,17 @@ func shouldDrawFace(chunk *pkg.Chunk, pos pkg.Coords, faceIndex int) bool {
 	if nx >= 0 && nx <= maxSize &&
 		ny >= 0 && ny <= maxHeight &&
 		nz >= 0 && nz <= maxSize {
+
+		if chunk == nil {
+			return false
+		}
+
 		voxelType := chunk.Voxels[nx][ny][nz].Type
 
 		if block, ok := world.BlockTypes[voxelType]; ok {
 			return !block.IsSolid
 		}
-		return true // unknown voxel → draw face
+		return false // unknown voxel → draw face
 	}
 
 	// Case 2: vertical faces (do not have chunk neighbors)
@@ -357,5 +362,5 @@ func shouldDrawFace(chunk *pkg.Chunk, pos pkg.Coords, faceIndex int) bool {
 	if block, ok := world.BlockTypes[voxelType]; ok {
 		return !block.IsSolid
 	}
-	return true
+	return false
 }
