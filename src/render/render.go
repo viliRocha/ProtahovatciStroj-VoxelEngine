@@ -3,7 +3,6 @@ package render
 import (
 	"fmt"
 	"math/rand"
-	"sort"
 
 	"go-engine/src/load"
 	"go-engine/src/pkg"
@@ -13,6 +12,7 @@ import (
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
 
+var waterColor rl.Color = world.BlockTypes["Water"].Color
 var cloudColor rl.Color = world.BlockTypes["Cloud"].Color
 
 func RenderVoxels(game *load.Game) {
@@ -31,7 +31,7 @@ func RenderVoxels(game *load.Game) {
 		)
 
 		if chunk.IsOutdated {
-			BuildChunkMesh(game, chunk, chunkPos)
+			BuildChunkMesh(game, chunk)
 			chunk.IsOutdated = false // reset flag → do not rebuild each frame
 		}
 
@@ -40,10 +40,8 @@ func RenderVoxels(game *load.Game) {
 			rl.DrawModel(chunk.Model, chunkPos, 1.0, rl.White)
 		}
 	}
-	game.ChunkCache.CacheMutex.RUnlock()
 
 	// --- Passage 2: plants per chunk (without global sorting) ---
-	game.ChunkCache.CacheMutex.RLock()
 	for coord, chunk := range game.ChunkCache.Active {
 		chunkPos := rl.NewVector3(
 			float32(coord.X*pkg.ChunkSize),
@@ -51,86 +49,60 @@ func RenderVoxels(game *load.Game) {
 			float32(coord.Z*pkg.ChunkSize),
 		)
 
-		for _, voxel := range chunk.SpecialVoxels {
-			if voxel.Type == "Plant" {
-				pos := rl.NewVector3(
-					chunkPos.X+float32(voxel.Position.X),
-					chunkPos.Y+float32(voxel.Position.Y),
-					chunkPos.Z+float32(voxel.Position.Z)-0.8) // The plant model is a little off center so i just udjust it a little
-				rl.DrawModel(voxel.Model, pos, 0.4, rl.White)
-			}
-		}
-	}
-	game.ChunkCache.CacheMutex.RUnlock()
-
-	// --- Global collection of transparencies ---
-	var transparentItems []pkg.TransparentItem
-
-	game.ChunkCache.CacheMutex.RLock()
-	for coord, chunk := range game.ChunkCache.Active {
-		chunkPos := rl.NewVector3(
-			float32(coord.X*pkg.ChunkSize),
-			0,
-			float32(coord.Z*pkg.ChunkSize),
-		)
-
-		for _, voxel := range chunk.SpecialVoxels {
+		for _, plant := range chunk.Plants {
 			pos := rl.NewVector3(
-				chunkPos.X+float32(voxel.Position.X),
-				chunkPos.Y+float32(voxel.Position.Y),
-				chunkPos.Z+float32(voxel.Position.Z),
-			)
-
-			transparentItems = append(transparentItems, pkg.TransparentItem{
-				Position:       pos,
-				Type:           voxel.Type,
-				Color:          world.BlockTypes[voxel.Type].Color,
-				IsSurfaceWater: voxel.Type == "Water" && voxel.IsSurface,
-			})
+				chunkPos.X+float32(plant.Position.X),
+				chunkPos.Y+float32(plant.Position.Y),
+				chunkPos.Z+float32(plant.Position.Z)-0.8) // The plant model is a little off center so i just udjust it a little
+			rl.DrawModel(pkg.PlantModels[plant.ModelID], pos, 0.4, rl.White)
 		}
 	}
-	game.ChunkCache.CacheMutex.RUnlock()
 
-	// --- Back-to-front sorting ---
-	if game.Camera.Position.Y >= float32(pkg.CloudHeight) {
-		sort.Slice(transparentItems, func(i, j int) bool {
-			di := rl.Vector3Length(rl.Vector3Subtract(transparentItems[i].Position, cam))
-			dj := rl.Vector3Length(rl.Vector3Subtract(transparentItems[j].Position, cam))
-			return di > dj // furthest first
-		})
-	}
+	// --- Render Water Mesh ---
 
-	// --- Round 3: transparent ---
 	rl.SetBlendMode(rl.BlendAlpha)
 	rl.DisableDepthMask()
-	//rl.BeginShaderMode(game.Shader)
-	for _, it := range transparentItems {
-		switch it.Type {
-		case "Water":
-			p := rl.NewVector3(it.Position.X+0.5, it.Position.Y+0.5, it.Position.Z+0.5)
 
-			/*
-				// calculates light intensity for this position
-				lightIntensity := calculateLightIntensity(p, game.LightPosition)
-				litColor := applyLighting(it.Color, lightIntensity)
-			*/
+	for coord, chunk := range game.ChunkCache.Active {
 
-			//rl.DrawPlane(p, rl.NewVector2(1.0, 1.0), it.Color)
-			rl.DrawModel(game.WaterModel, p, 1.0, world.BlockTypes["Water"].Color)
-		case "Cloud":
-			/*
-				lightIntensity := calculateLightIntensity(it.Position, game.LightPosition)
-				litColor := applyLighting(it.Color, lightIntensity)
-			*/
-			p := rl.NewVector3(it.Position.X, float32(pkg.CloudHeight), it.Position.Z)
+		chunkPos := rl.NewVector3(
+			float32(coord.X*pkg.ChunkSize),
+			0,
+			float32(coord.Z*pkg.ChunkSize),
+		)
 
-			if ShowClouds {
-				rl.DrawCube(p, 1.0, 0.0, 1.0, cloudColor)
-			}
+		if chunk.WaterModel.MeshCount > 0 && chunk.WaterModel.Meshes != nil {
+			rl.DrawModel(
+				chunk.WaterModel,
+				chunkPos,
+				1.0,
+				waterColor,
+			)
 		}
 	}
 
-	//rl.EndShaderMode()
+	//--- Render Cloud Mesh ---
+
+	for coord, chunk := range game.ChunkCache.Active {
+
+		chunkPos := rl.NewVector3(
+			float32(coord.X*pkg.ChunkSize),
+			0,
+			float32(coord.Z*pkg.ChunkSize),
+		)
+
+		if chunk.CloudModel.MeshCount > 0 && chunk.CloudModel.Meshes != nil {
+			rl.DrawModel(
+				chunk.CloudModel,
+				chunkPos,
+				1.0,
+				cloudColor,
+			)
+		}
+	}
+
+	game.ChunkCache.CacheMutex.RUnlock()
+
 	rl.EnableDepthMask()
 	rl.SetBlendMode(rl.BlendMode(0))
 }

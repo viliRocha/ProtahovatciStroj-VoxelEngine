@@ -88,8 +88,8 @@ func generatePlants(chunk *pkg.Chunk, chunkPos rl.Vector3, oldPlants []pkg.Plant
 			localZ := int(plant.Position.Z) - int(chunkPos.Z)
 
 			chunk.Voxels[localX][localY][localZ] = pkg.VoxelData{
-				Type:  "Plant",
-				Model: pkg.PlantModels[plant.ModelID],
+				Type:    "Plant",
+				ModelID: plant.ModelID,
 			}
 
 			chunk.Plants = append(chunk.Plants, plant)
@@ -129,8 +129,8 @@ func generatePlants(chunk *pkg.Chunk, chunkPos rl.Vector3, oldPlants []pkg.Plant
 				// plant_6: blooming blue grass - birchwood biome
 				// plant_7: mushroom (I know they thecnically aren't plants 🤓) - birchwood biome
 				chunk.Voxels[x][height+1][z] = pkg.VoxelData{
-					Type:  "Plant",
-					Model: pkg.PlantModels[randomModel],
+					Type:    "Plant",
+					ModelID: randomModel,
 				}
 				plantPos := rl.NewVector3(chunkPos.X+float32(x), float32(height+1), chunkPos.Z+float32(z))
 				chunk.Plants = append(chunk.Plants, pkg.PlantData{

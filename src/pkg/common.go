@@ -17,9 +17,9 @@ const (
 )
 
 type VoxelData struct {
-	Type  string
-	Model rl.Model
-	Color rl.Color
+	Type    string
+	ModelID int32
+	Color   rl.Color
 }
 
 // Stores plant positions
@@ -34,18 +34,18 @@ type TreeData struct {
 }
 
 type SpecialVoxel struct {
-	Position  Coords
-	Type      string
-	Model     rl.Model // for plants
-	IsSurface bool     // for water
+	Position Coords
+	Type     string
+	ModelID  int32 // for plants
 }
 
-type TransparentItem struct {
-	Position       rl.Vector3
-	Type           string
-	Color          rl.Color
-	IsSurfaceWater bool
+/*
+type TransparentMesh struct {
+	Chunk *Chunk
+	Pos   rl.Vector3
+	Dist  float32
 }
+*/
 
 type Chunk struct {
 	Coord     Coords // Chunk position -> used for chunk managment
@@ -56,15 +56,24 @@ type Chunk struct {
 	Plants    []PlantData
 	Trees     []TreeData
 
-	// Buffers reutilizáveis para mesh
+	// Reusable buffers for terrain meshes
 	Vertices []float32
 	Indices  []uint16
 	Colors   []uint8
 	Normals  []float32
+	Model    rl.Model
+
+	// Specific for water mesh
+	WaterVertices []float32
+	WaterIndices  []uint16
+	WaterNormals  []float32
+	WaterModel    rl.Model
+
+	CloudVertices []float32
+	CloudIndices  []uint16
+	CloudModel    rl.Model
 
 	Mesh          rl.Mesh
-	Model         rl.Model
-	CloudModel    rl.Model
 	SpecialVoxels []SpecialVoxel
 	IsOutdated    bool // Flag to know if you need to update the mesh
 }

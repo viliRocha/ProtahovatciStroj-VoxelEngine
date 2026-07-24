@@ -4,24 +4,31 @@ import (
 	"go-engine/src/load"
 	"go-engine/src/pkg"
 	"go-engine/src/world"
-	"unsafe"
 
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
 
-func BuildChunkMesh(game *load.Game, chunk *pkg.Chunk, chunkPos rl.Vector3) {
+func BuildChunkMesh(game *load.Game, chunk *pkg.Chunk) {
 	// Clears buffers and specials list
 	chunk.Vertices = chunk.Vertices[:0]
 	chunk.Indices = chunk.Indices[:0]
 	chunk.Colors = chunk.Colors[:0]
 	chunk.Normals = chunk.Normals[:0]
+
+	chunk.WaterVertices = chunk.WaterVertices[:0]
+	chunk.WaterIndices = chunk.WaterIndices[:0]
+	chunk.WaterNormals = chunk.WaterNormals[:0]
+
+	chunk.CloudVertices = chunk.CloudVertices[:0]
+	chunk.CloudIndices = chunk.CloudIndices[:0]
+
 	chunk.SpecialVoxels = chunk.SpecialVoxels[:0]
 
 	Nx, Ny, Nz := int(pkg.ChunkSize), int(pkg.WorldHeight), int(pkg.ChunkSize)
 
 	indexOffset := uint16(0)
 
-	// Tabela fixa de normais por face
+	// Fixed table of normals by face
 	faceNormals := [6][3]float32{
 		{1, 0, 0}, {-1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1},
 	}
@@ -43,37 +50,20 @@ func BuildChunkMesh(game *load.Game, chunk *pkg.Chunk, chunkPos rl.Vector3) {
 		voxel := chunk.Voxels[pos.X][pos.Y][pos.Z]
 		block := world.BlockTypes[voxel.Type]
 
-		// Special cases → not included in the mesh, but they are kept
+		// Special cases → not included in the terrain mesh
 		switch voxel.Type {
 		case "Plant":
 			chunk.SpecialVoxels = append(chunk.SpecialVoxels, pkg.SpecialVoxel{
 				Position: pos,
 				Type:     voxel.Type,
-				Model:    voxel.Model,
+				ModelID:  voxel.ModelID,
 			})
 			continue
 		case "Water":
-			// only add if it's a surface
-			isSurface := true
-			if pos.Y+1 < pkg.WorldHeight {
-				above := chunk.Voxels[pos.X][pos.Y+1][pos.Z]
-				if above.Type == "Water" {
-					isSurface = false
-				}
-			}
-			if isSurface {
-				chunk.SpecialVoxels = append(chunk.SpecialVoxels, pkg.SpecialVoxel{
-					Position:  pos,
-					Type:      voxel.Type,
-					IsSurface: true,
-				})
-			}
+			addWater(chunk, pos)
 			continue
 		case "Cloud":
-			chunk.SpecialVoxels = append(chunk.SpecialVoxels, pkg.SpecialVoxel{
-				Position: pos,
-				Type:     voxel.Type,
-			})
+			addCloudFaces(chunk, pos)
 			continue
 		}
 
@@ -149,150 +139,169 @@ func BuildChunkMesh(game *load.Game, chunk *pkg.Chunk, chunkPos rl.Vector3) {
 		}
 	}
 
-	mesh := rl.Mesh{
-		VertexCount:   int32(len(chunk.Vertices) / 3),
-		TriangleCount: int32(len(chunk.Indices) / 3),
-	}
-
+	//  ---------- Terrain mesh ----------
 	if len(chunk.Vertices) > 0 {
+		mesh := rl.Mesh{
+			VertexCount:   int32(len(chunk.Vertices) / 3),
+			TriangleCount: int32(len(chunk.Indices) / 3),
+		}
+
 		mesh.Vertices = &chunk.Vertices[0]
-	}
-	if len(chunk.Indices) > 0 {
 		mesh.Indices = &chunk.Indices[0]
-	}
-	if len(chunk.Colors) > 0 {
 		mesh.Colors = &chunk.Colors[0]
-	}
-	if len(chunk.Normals) > 0 {
 		mesh.Normals = &chunk.Normals[0]
+
+		chunk.Model = createChunkModel(mesh, game.Shader)
 	}
 
-	rl.UploadMesh(&mesh, false)
-	model := rl.LoadModelFromMesh(mesh)
+	// ---------- Water mesh ----------
+	if len(chunk.WaterVertices) > 0 {
+		mesh := rl.Mesh{
+			VertexCount:   int32(len(chunk.WaterVertices) / 3),
+			TriangleCount: int32(len(chunk.WaterIndices) / 3),
+		}
 
-	// Create material and assign it
-	material := rl.LoadMaterialDefault()
-	material.Shader = game.Shader
-	model.MaterialCount = 1
-	model.Materials = &material
+		mesh.Vertices = &chunk.WaterVertices[0]
+		mesh.Indices = &chunk.WaterIndices[0]
+		mesh.Normals = &chunk.WaterNormals[0]
 
-	// Assign to chunk
-	chunk.Model = model
+		chunk.WaterModel = createChunkModel(mesh, game.Shader)
+	}
+
+	// ---------- Clouds mesh ----------
+	if len(chunk.CloudVertices) > 0 {
+		mesh := rl.Mesh{
+			VertexCount:   int32(len(chunk.CloudVertices) / 3),
+			TriangleCount: int32(len(chunk.CloudIndices) / 3),
+		}
+
+		mesh.Vertices = &chunk.CloudVertices[0]
+		mesh.Indices = &chunk.CloudIndices[0]
+
+		//	Clouds are not affected by the fog shader
+		chunk.CloudModel = createChunkModel(mesh, rl.Shader{})
+	}
+
 	chunk.IsOutdated = false
 }
 
-func BuildCloudGreedyMesh(game *load.Game, chunk *pkg.Chunk) {
-	// Clears buffers and specials list
-	chunk.Vertices = chunk.Vertices[:0]
-	chunk.Indices = chunk.Indices[:0]
-	chunk.Colors = chunk.Colors[:0]
-	//chunk.Normals = chunk.Normals[:0]
-
-	indexOffset := uint16(0)
-
-	Nx, Ny, Nz := int(pkg.ChunkSize), int(pkg.WorldHeight), int(pkg.ChunkSize)
-
-	y := pkg.CloudHeight //int(float64(pkg.WorldHeight) * pkg.WaterLevelFraction)
-
-	// percorre cada camada Z
-	for z := 0; z < Nz; z++ {
-		// matriz de marcação para faces já mescladas
-		used := make([]bool, Nx*Ny)
-
-		for x := 0; x < Nx; x++ {
-			idx := y*Nx + x
-			if used[idx] {
-				continue
-			}
-
-			voxel := chunk.Voxels[x][y][z]
-			if voxel.Type != "Cloud" {
-				continue
-			}
-
-			// tenta expandir retângulo na direção X
-			width := 1
-			for x+width < Nx {
-				next := chunk.Voxels[x+width][y][z]
-				if next.Type == "Cloud" && !used[y*Nx+(x+width)] {
-					width++
-				} else {
-					break
-				}
-			}
-
-			// marca como usado
-			for w := 0; w < width; w++ {
-				used[y*Nx+(x+w)] = true
-			}
-
-			// cria quad superior (face voltada para cima)
-			quadTop := [4][3]float32{
-				{float32(x), float32(y), float32(z)},
-				{float32(x + width), float32(y), float32(z)},
-				{float32(x + width), float32(y), float32(z + 1)},
-				{float32(x), float32(y), float32(z + 1)},
-			}
-
-			for _, v := range quadTop {
-				chunk.Vertices = append(chunk.Vertices, v[0], v[1], v[2])
-				c := world.BlockTypes["Cloud"].Color
-				chunk.Colors = append(chunk.Colors, c.R, c.G, c.B, 110)
-			}
-
-			chunk.Indices = append(chunk.Indices,
-				indexOffset, indexOffset+1, indexOffset+2,
-				indexOffset, indexOffset+2, indexOffset+3,
-			)
-			indexOffset += 4
-
-			// Quad inferior (face voltada para baixo, normal -Y)
-			// Note que a ordem dos vértices é invertida para que a face seja "virada"
-			quadBottom := [4][3]float32{
-				{float32(x), float32(y), float32(z)},
-				{float32(x), float32(y), float32(z + 1)},
-				{float32(x + width), float32(y), float32(z + 1)},
-				{float32(x + width), float32(y), float32(z)},
-			}
-			for _, v := range quadBottom {
-				chunk.Vertices = append(chunk.Vertices, v[0], v[1], v[2])
-				c := world.BlockTypes["Cloud"].Color
-				chunk.Colors = append(chunk.Colors, c.R, c.G, c.B, 160)
-				chunk.Normals = append(chunk.Normals, 0, -1, 0) // normal para baixo
-			}
-			chunk.Indices = append(chunk.Indices,
-				indexOffset, indexOffset+1, indexOffset+2,
-				indexOffset, indexOffset+2, indexOffset+3,
-			)
-			indexOffset += 4
-		}
-	}
-
-	mesh := rl.Mesh{
-		VertexCount:   int32(len(chunk.Vertices) / 3),
-		TriangleCount: int32(len(chunk.Indices) / 3),
-	}
-	if len(chunk.Vertices) > 0 {
-		mesh.Vertices = (*float32)(unsafe.Pointer(&chunk.Vertices[0]))
-	}
-	if len(chunk.Indices) > 0 {
-		mesh.Indices = (*uint16)(unsafe.Pointer(&chunk.Indices[0]))
-	}
-	if len(chunk.Colors) > 0 {
-		mesh.Colors = (*uint8)(unsafe.Pointer(&chunk.Colors[0]))
-	}
-
+func createChunkModel(mesh rl.Mesh, shader rl.Shader) rl.Model {
 	rl.UploadMesh(&mesh, false)
+
 	model := rl.LoadModelFromMesh(mesh)
 
-	mat := rl.LoadMaterialDefault()
-	mat.Shader = game.Shader
-	//mat.Maps.Color = rl.White
-	model.MaterialCount = 1
-	model.Materials = &mat
+	material := rl.LoadMaterialDefault()
 
-	chunk.CloudModel = model
-	chunk.IsOutdated = false
+	if shader.ID != 0 {
+		material.Shader = shader
+	}
+
+	model.MaterialCount = 1
+	model.Materials = &material
+
+	return model
+}
+
+func unloadChunkModels(chunk *pkg.Chunk) {
+
+	if chunk.Model.MeshCount > 0 {
+		rl.UnloadModel(chunk.Model)
+	}
+
+	if chunk.WaterModel.MeshCount > 0 {
+		rl.UnloadModel(chunk.WaterModel)
+	}
+
+	if chunk.CloudModel.MeshCount > 0 {
+		rl.UnloadModel(chunk.CloudModel)
+	}
+}
+
+func addWater(chunk *pkg.Chunk, pos pkg.Coords) {
+	// only add if it's a surface
+	isSurface := true
+	if pos.Y+1 < pkg.WorldHeight {
+		above := chunk.Voxels[pos.X][pos.Y+1][pos.Z]
+		if above.Type == "Water" {
+			isSurface = false
+		}
+	}
+	if isSurface {
+		addWaterQuad(chunk, pos)
+	}
+}
+
+func addWaterQuad(chunk *pkg.Chunk, pos pkg.Coords) {
+	indexOffset := uint16(len(chunk.WaterVertices) / 3)
+
+	// normal pointing upwards
+	for i := 0; i < 4; i++ {
+		chunk.WaterNormals = append(chunk.WaterNormals, 0, 1, 0)
+	}
+
+	y := float32(pos.Y) + 0.50 // slightly below the top of the block
+
+	verts := [4][3]float32{
+		{float32(pos.X), y, float32(pos.Z)},
+		{float32(pos.X + 1), y, float32(pos.Z)},
+		{float32(pos.X + 1), y, float32(pos.Z + 1)},
+		{float32(pos.X), y, float32(pos.Z + 1)},
+	}
+
+	for _, v := range verts {
+		chunk.WaterVertices = append(chunk.WaterVertices,
+			v[0], v[1], v[2],
+		)
+	}
+
+	chunk.WaterIndices = append(chunk.WaterIndices,
+		indexOffset, indexOffset+2, indexOffset+1,
+		indexOffset, indexOffset+3, indexOffset+2,
+	)
+}
+
+func addCloudFaces(chunk *pkg.Chunk, pos pkg.Coords) {
+	addCloudFace(chunk, pos, true)  // top
+	addCloudFace(chunk, pos, false) // bottom
+}
+
+func addCloudFace(chunk *pkg.Chunk, pos pkg.Coords, top bool) {
+	indexOffset := uint16(len(chunk.CloudVertices) / 3)
+
+	var y float32
+
+	if top {
+		y = float32(pos.Y) + 1.0
+	} else {
+		y = float32(pos.Y)
+	}
+
+	// Maintain the same order for both sides.
+	verts := [4][3]float32{
+		{float32(pos.X), y, float32(pos.Z)},
+		{float32(pos.X + 1), y, float32(pos.Z)},
+		{float32(pos.X + 1), y, float32(pos.Z + 1)},
+		{float32(pos.X), y, float32(pos.Z + 1)},
+	}
+
+	for _, v := range verts {
+		chunk.CloudVertices = append(chunk.CloudVertices,
+			v[0], v[1], v[2],
+		)
+	}
+
+	if top {
+		chunk.CloudIndices = append(chunk.CloudIndices,
+			indexOffset, indexOffset+2, indexOffset+1,
+			indexOffset, indexOffset+3, indexOffset+2,
+		)
+	} else {
+		// inverted to the lower face
+		chunk.CloudIndices = append(chunk.CloudIndices,
+			indexOffset, indexOffset+1, indexOffset+2,
+			indexOffset, indexOffset+2, indexOffset+3,
+		)
+	}
 }
 
 func shouldDrawFace(chunk *pkg.Chunk, pos pkg.Coords, faceIndex int) bool {

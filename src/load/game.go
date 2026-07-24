@@ -105,7 +105,6 @@ type Game struct {
 	Worley        *world.WorleyNoise
 	BiomeSelector *world.BiomeSelector
 	Shader        rl.Shader
-	WaterModel    rl.Model
 	//LightPosition rl.Vector3
 }
 
@@ -187,11 +186,6 @@ func InitGame() Game {
 		(*pkg.PlantModels[i].Materials).Shader = Shader
 	}
 
-	//	Load water mesh
-	mesh := rl.GenMeshPlane(1, 1, 1, 1)
-	waterModel := rl.LoadModelFromMesh(mesh)
-	(*waterModel.Materials).Shader = Shader
-
 	//LightPosition := rl.NewVector3(0, 34, 0)
 
 	chunkCache := world.NewChunkCache() // Initialize ChunkCache
@@ -240,7 +234,6 @@ func InitGame() Game {
 		Worley:        worley,
 		BiomeSelector: biomeSel,
 		Shader:        Shader,
-		WaterModel:    waterModel,
 		//LightPosition: LightPosition,
 	}
 }
