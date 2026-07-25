@@ -118,7 +118,7 @@ func generatePlants(chunk *pkg.Chunk, chunkPos rl.Vector3, oldPlants []pkg.Plant
 			if biome.PlantTypes != nil && len(biome.PlantTypes) > 0 {
 				// Choose a random index from the list of PlantTypes.
 				idx := rand.Intn(len(biome.PlantTypes))
-				randomModel := biome.PlantTypes[idx]
+				randomModel := uint8(biome.PlantTypes[idx])
 
 				// plant_0: short grass - all biomes
 				// plant_1: taller grass - all biomes

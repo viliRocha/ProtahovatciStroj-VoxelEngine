@@ -202,21 +202,6 @@ func createChunkModel(mesh rl.Mesh, shader rl.Shader) rl.Model {
 	return model
 }
 
-func unloadChunkModels(chunk *pkg.Chunk) {
-
-	if chunk.Model.MeshCount > 0 {
-		rl.UnloadModel(chunk.Model)
-	}
-
-	if chunk.WaterModel.MeshCount > 0 {
-		rl.UnloadModel(chunk.WaterModel)
-	}
-
-	if chunk.CloudModel.MeshCount > 0 {
-		rl.UnloadModel(chunk.CloudModel)
-	}
-}
-
 func addWater(chunk *pkg.Chunk, pos pkg.Coords) {
 	// only add if it's a surface
 	isSurface := true
@@ -268,13 +253,8 @@ func addCloudFaces(chunk *pkg.Chunk, pos pkg.Coords) {
 func addCloudFace(chunk *pkg.Chunk, pos pkg.Coords, top bool) {
 	indexOffset := uint16(len(chunk.CloudVertices) / 3)
 
-	var y float32
-
-	if top {
-		y = float32(pos.Y) + 1.0
-	} else {
-		y = float32(pos.Y)
-	}
+	//	Is stored in local coordinates
+	var y = float32(0)
 
 	// Maintain the same order for both sides.
 	verts := [4][3]float32{

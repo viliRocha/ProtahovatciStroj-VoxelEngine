@@ -58,7 +58,7 @@ func renderMenu(menuX, menuY, width int32) {
 	)
 
 	newGuiSlider(menuX+20, menuY+530+offsetY, float32(width-40), 40.0,
-		&pkg.ChunkDistance, 1, 15,
+		&pkg.ChunkDistance, 1, 25,
 		fmt.Sprintf("View Distance: %d", pkg.ChunkDistance),
 	)
 

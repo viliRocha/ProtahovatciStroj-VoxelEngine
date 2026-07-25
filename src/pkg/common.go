@@ -7,7 +7,7 @@ import (
 
 var PlantModels [8]rl.Model
 
-var ChunkDistance int = 3
+var ChunkDistance int = 5
 var CloudHeight int = 80
 
 const (
@@ -18,14 +18,14 @@ const (
 
 type VoxelData struct {
 	Type    string
-	ModelID int32
+	ModelID uint8
 	Color   rl.Color
 }
 
 // Stores plant positions
 type PlantData struct {
 	Position rl.Vector3
-	ModelID  int32
+	ModelID  uint8
 }
 
 type TreeData struct {
@@ -36,7 +36,7 @@ type TreeData struct {
 type SpecialVoxel struct {
 	Position Coords
 	Type     string
-	ModelID  int32 // for plants
+	ModelID  uint8 // for plants
 }
 
 /*

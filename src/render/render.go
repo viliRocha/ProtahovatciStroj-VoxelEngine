@@ -42,18 +42,12 @@ func RenderVoxels(game *load.Game) {
 	}
 
 	// --- Passage 2: plants per chunk (without global sorting) ---
-	for coord, chunk := range game.ChunkCache.Active {
-		chunkPos := rl.NewVector3(
-			float32(coord.X*pkg.ChunkSize),
-			0,
-			float32(coord.Z*pkg.ChunkSize),
-		)
-
+	for _, chunk := range game.ChunkCache.Active {
 		for _, plant := range chunk.Plants {
 			pos := rl.NewVector3(
-				chunkPos.X+float32(plant.Position.X),
-				chunkPos.Y+float32(plant.Position.Y),
-				chunkPos.Z+float32(plant.Position.Z)-0.8) // The plant model is a little off center so i just udjust it a little
+				plant.Position.X,
+				plant.Position.Y,
+				plant.Position.Z-0.8) // The plant model is a little off center so i just udjust it a little
 			rl.DrawModel(pkg.PlantModels[plant.ModelID], pos, 0.4, rl.White)
 		}
 	}
@@ -87,11 +81,11 @@ func RenderVoxels(game *load.Game) {
 
 		chunkPos := rl.NewVector3(
 			float32(coord.X*pkg.ChunkSize),
-			0,
+			float32(pkg.CloudHeight),
 			float32(coord.Z*pkg.ChunkSize),
 		)
 
-		if chunk.CloudModel.MeshCount > 0 && chunk.CloudModel.Meshes != nil {
+		if chunk.CloudModel.MeshCount > 0 && chunk.CloudModel.Meshes != nil && ShowClouds {
 			rl.DrawModel(
 				chunk.CloudModel,
 				chunkPos,

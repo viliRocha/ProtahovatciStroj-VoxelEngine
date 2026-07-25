@@ -79,7 +79,7 @@ func (cc *ChunkCache) GetChunk(worley *WorleyNoise, biomeSel *BiomeSelector, pos
 
 	// Update caches
 	cc.CacheMutex.Lock()
-	cc.Active[coord] = newChunk
+	//cc.Active[coord] = newChunk
 
 	// applies pending issues after the core terrain generation so tree voxels aren’t overwritten.
 	if writes, ok := cc.PendingVoxels[coord]; ok {
@@ -121,14 +121,35 @@ func (cc *ChunkCache) CleanUp(playerPosition rl.Vector3) {
 	playerCoord := ToChunkCoord(playerPosition)
 	chDist := int(pkg.ChunkDistance)
 
-	for coord := range cc.Active {
+	for coord /*, chunk*/ := range cc.Active {
 		if Abs(coord.X-playerCoord.X) > chDist ||
 			Abs(coord.Z-playerCoord.Z) > chDist {
+			//unloadChunkModels(chunk)
+
 			delete(cc.Active, coord)
 			// DO NOT delete cc.PlantsCache[coord] — plants remain stored
 		}
 	}
 }
+
+/*
+func unloadChunkModels(chunk *pkg.Chunk) {
+	if chunk.Model.MeshCount > 0 {
+		rl.UnloadModel(chunk.Model)
+		chunk.Model = rl.Model{}
+	}
+
+	if chunk.WaterModel.MeshCount > 0 {
+		rl.UnloadModel(chunk.WaterModel)
+		chunk.WaterModel = rl.Model{}
+	}
+
+	if chunk.CloudModel.MeshCount > 0 {
+		rl.UnloadModel(chunk.CloudModel)
+		chunk.CloudModel = rl.Model{}
+	}
+}
+*/
 
 // global channel for ready-made chunks
 var readyChunks = make(chan *pkg.Chunk, 200)
@@ -183,45 +204,57 @@ func ManageChunks(worley *WorleyNoise, biomeSel *BiomeSelector, playerPosition r
 		select {
 		case pc := <-readyChunks:
 			chunkCache.CacheMutex.Lock()
+
 			chunkCache.Active[pc.Coord] = pc
-			delete(chunkCache.Loading, pc.Coord) // remove da lista de carregamento
+			delete(chunkCache.Loading, pc.Coord) // remove from the loading list
+
+			connectNeighbors(chunkCache, pc) // When the chunk enters the Active state, it immediately connects to its neighbors.
+
 			chunkCache.CacheMutex.Unlock()
 		default:
 			return
 		}
 	}
 
-	// Updates neighbors
-	chunkCache.CacheMutex.Lock()
-	// Ensures that each chunk on the chunkCache.chunks map has up-to-date references to its neighboring chunks on X and Z directions
-	for coord, chunk := range chunkCache.Active {
-		for i, direction := range pkg.HorizontalDirections {
-			neighborCoord := pkg.Coords{
-				X: coord.X + int(direction.X),
-				Y: 0,
-				Z: coord.Z + int(direction.Z),
-			}
-			if neighbor, exists := chunkCache.Active[neighborCoord]; exists {
-				if chunk.Neighbors[i] != neighbor {
-					// Update reference
-					chunk.Neighbors[i] = neighbor
-					// Mark both as outdated to rebuild the mesh (exposed/hidden faces are recalculated, fixing the 'holes' in the terrain)
-					chunk.IsOutdated = true
-					neighbor.IsOutdated = true
-				}
-			} else {
-				if chunk.Neighbors[i] != nil {
-					// Neighbor was removed → mark chunk as outdated
-					chunk.Neighbors[i] = nil
-					chunk.IsOutdated = true
-				}
-			}
-		}
-	}
-	chunkCache.CacheMutex.Unlock()
-
 	// Remove chunks outside the range
 	chunkCache.CleanUp(playerPosition)
+}
+
+var oppositeNeighbor = [4]int{
+	1, // +X -> -X
+	0, // -X -> +X
+	3, // +Z -> -Z
+	2, // -Z -> +Z
+}
+
+func connectNeighbors(cache *ChunkCache, chunk *pkg.Chunk) {
+	coord := chunk.Coord
+
+	// Ensures that each chunk on the chunkCache.chunks map has up-to-date references to its neighboring chunks on X and Z directions
+	for i, dir := range pkg.HorizontalDirections {
+
+		neighborCoord := pkg.Coords{
+			X: coord.X + int(dir.X),
+			Y: 0,
+			Z: coord.Z + int(dir.Z),
+		}
+
+		neighbor, ok := cache.Active[neighborCoord]
+		if !ok {
+			continue
+		}
+
+		if chunk.Neighbors[i] != neighbor {
+			// Update reference
+			chunk.Neighbors[i] = neighbor
+
+			neighbor.Neighbors[oppositeNeighbor[i]] = chunk
+
+			// Mark both as outdated to rebuild the mesh (exposed/hidden faces are recalculated, fixing the 'holes' in the terrain)
+			chunk.IsOutdated = true
+			neighbor.IsOutdated = true
+		}
+	}
 }
 
 func setVoxelGlobal(chunkCache *ChunkCache, globalPos rl.Vector3, voxel pkg.VoxelData) {
