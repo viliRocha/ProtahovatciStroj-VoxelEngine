@@ -59,6 +59,12 @@ var BiomeTypes = map[string]*pkg.BiomeProperties{
 		UndergroundBlock: "Sand",
 		PlantTypes:       nil,
 	},
+	"Snowplain": {
+		Modifier:         snowplainModifier,
+		SurfaceBlock:     "Snow",
+		UndergroundBlock: "Dirt",
+		PlantTypes:       nil,
+	},
 }
 
 type Cell struct {
@@ -120,7 +126,7 @@ func (b *BiomeSelector) biomeForCell(cellX, cellZ int) *pkg.BiomeProperties {
 	h := int64(cellX*83492791^cellZ*1234567) ^ b.Seed
 	r := rand.New(rand.NewSource(h))
 
-	biomeKeys := []string{"Meadow", "Birchwood", "Savanna", "Desert"}
+	biomeKeys := []string{"Meadow", "Birchwood", "Savanna", "Desert" /*, "Snowplain"*/}
 	key := biomeKeys[r.Intn(len(biomeKeys))]
 	return BiomeTypes[key]
 }
@@ -140,6 +146,17 @@ func meadowModifier(gx, gz int, p2, p3 *perlin.Perlin) float64 {
 
 	// Combines both (can be done with sum, average, or another function)
 	return (n2*1.2 + n3*0.3) * float64(pkg.WorldHeight/2) // Normalizes the noise value to [0, worldHeight / 2]
+}
+
+func snowplainModifier(gx, gz int, p2, p3 *perlin.Perlin) float64 {
+	n := p2.Noise2D(float64(gx)*0.003, float64(gz)*0.003)
+
+	n2 := p2.Noise2D(float64(gx)*0.04, float64(gz)*0.04)
+
+	n2 = math.Pow(math.Abs(n2), 3)
+
+	base := (n*0.7 + n2*1) * float64(pkg.WorldHeight/5)
+	return base
 }
 
 func desertModifier(gx, gz int, p2, p3 *perlin.Perlin) float64 {

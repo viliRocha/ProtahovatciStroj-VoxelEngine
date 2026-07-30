@@ -20,9 +20,19 @@ func RenderVoxels(game *load.Game) {
 
 	rl.SetShaderValue(game.Shader, rl.GetShaderLocation(game.Shader, "viewPos"), []float32{cam.X, cam.Y, cam.Z}, rl.ShaderUniformVec3)
 
-	// --- Round 1: solids ---
+	// Create snapshot of active chunks
 	game.ChunkCache.CacheMutex.RLock()
+
+	activeChunks := make(map[pkg.Coords]*pkg.Chunk, len(game.ChunkCache.Active))
+
 	for coord, chunk := range game.ChunkCache.Active {
+		activeChunks[coord] = chunk
+	}
+
+	game.ChunkCache.CacheMutex.RUnlock()
+
+	// --- Round 1: solids ---
+	for coord, chunk := range activeChunks {
 		// Converts chunk coordinate to actual position
 		chunkPos := rl.NewVector3(
 			float32(coord.X*pkg.ChunkSize),
@@ -42,7 +52,7 @@ func RenderVoxels(game *load.Game) {
 	}
 
 	// --- Passage 2: plants per chunk (without global sorting) ---
-	for _, chunk := range game.ChunkCache.Active {
+	for _, chunk := range activeChunks {
 		for _, plant := range chunk.Plants {
 			pos := rl.NewVector3(
 				plant.Position.X,
@@ -57,7 +67,7 @@ func RenderVoxels(game *load.Game) {
 	rl.SetBlendMode(rl.BlendAlpha)
 	rl.DisableDepthMask()
 
-	for coord, chunk := range game.ChunkCache.Active {
+	for coord, chunk := range activeChunks {
 
 		chunkPos := rl.NewVector3(
 			float32(coord.X*pkg.ChunkSize),
@@ -77,7 +87,7 @@ func RenderVoxels(game *load.Game) {
 
 	//--- Render Cloud Mesh ---
 
-	for coord, chunk := range game.ChunkCache.Active {
+	for coord, chunk := range activeChunks {
 
 		chunkPos := rl.NewVector3(
 			float32(coord.X*pkg.ChunkSize),
@@ -95,14 +105,14 @@ func RenderVoxels(game *load.Game) {
 		}
 	}
 
-	game.ChunkCache.CacheMutex.RUnlock()
+	//game.ChunkCache.CacheMutex.RUnlock()
 
 	rl.EnableDepthMask()
 	rl.SetBlendMode(rl.BlendMode(0))
 }
 
 func applyUnderwaterEffect(game *load.Game) {
-	waterLevel := int(float64(pkg.WorldHeight)*pkg.WaterLevelFraction) + 1
+	waterLevel := int32(float32(pkg.WorldHeight)*pkg.WaterLevelFraction) + 1
 
 	coord := world.ToChunkCoord(game.Camera.Position)
 

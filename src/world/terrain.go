@@ -64,7 +64,7 @@ func GenerateChunk(worley *WorleyNoise, biomeSel *BiomeSelector, position rl.Vec
 	chunkCache.Active[coord] = chunk
 	chunkCache.CacheMutex.Unlock()
 
-	waterLevel := int(float64(pkg.WorldHeight)*pkg.WaterLevelFraction) - 1
+	waterLevel := int(float32(pkg.WorldHeight)*pkg.WaterLevelFraction) - 1
 
 	for x := 0; x < pkg.ChunkSize; x++ {
 		for z := 0; z < pkg.ChunkSize; z++ {

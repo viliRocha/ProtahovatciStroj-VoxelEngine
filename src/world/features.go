@@ -40,6 +40,11 @@ var BlockTypes = map[string]BlockProperties{
 		IsSolid:   true,
 		IsVisible: true,
 	},
+	"Snow": {
+		Color:     rl.NewColor(197, 232, 239, 255),
+		IsSolid:   true,
+		IsVisible: true,
+	},
 	"OakWood": {
 		Color:     rl.NewColor(126, 90, 57, 255), // Light brown
 		IsSolid:   true,
@@ -79,7 +84,7 @@ type TurtleState struct {
 
 // Generate vegetation at random surface positions
 func generatePlants(chunk *pkg.Chunk, chunkPos rl.Vector3, oldPlants []pkg.PlantData, reusePlants bool) {
-	waterLevel := int(float64(pkg.WorldHeight) * pkg.WaterLevelFraction)
+	waterLevel := int(float32(pkg.WorldHeight) * pkg.WaterLevelFraction)
 
 	if reusePlants && oldPlants != nil {
 		for _, plant := range oldPlants {
@@ -294,7 +299,7 @@ func placeTree(chunkCache *ChunkCache, position rl.Vector3, treeStructure string
 }
 
 func generateTrees(chunk *pkg.Chunk, chunkCache *ChunkCache, chunkOrigin rl.Vector3, oldTrees []pkg.TreeData, reuseTrees bool) {
-	waterLevel := int(float64(pkg.WorldHeight) * pkg.WaterLevelFraction)
+	waterLevel := int(float32(pkg.WorldHeight) * pkg.WaterLevelFraction)
 
 	if reuseTrees && oldTrees != nil {
 		for _, tree := range oldTrees {
@@ -389,7 +394,7 @@ func genClouds(chunk *pkg.Chunk, position rl.Vector3, x, z int, p *perlin.Perlin
 }
 
 func genWaterFormations(chunk *pkg.Chunk, x, z int) {
-	waterLevel := int(float64(pkg.WorldHeight) * pkg.WaterLevelFraction)
+	waterLevel := int(float32(pkg.WorldHeight) * pkg.WaterLevelFraction)
 
 	topWaterY := waterLevel
 

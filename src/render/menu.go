@@ -46,7 +46,7 @@ func renderMenu(menuX, menuY, width int32) {
 	newButton(menuX+20, menuY+230+offsetY, float32(width-40), 40.0, &ShowClouds, "Clouds")
 
 	newGuiSlider(menuX+20, menuY+290+offsetY, float32(width-40), 40.0,
-		&pkg.CloudHeight, 30, 120,
+		&pkg.CloudHeight, 30, 111,
 		fmt.Sprintf("Cloud Height: %d", pkg.CloudHeight),
 	)
 

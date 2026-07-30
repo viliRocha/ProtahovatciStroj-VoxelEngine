@@ -13,7 +13,7 @@ var CloudHeight int = 80
 const (
 	WorldHeight        int     = 112
 	ChunkSize          int     = 16
-	WaterLevelFraction float64 = 0.375 // 3/8
+	WaterLevelFraction float32 = 0.375 // 3/8
 )
 
 type VoxelData struct {
